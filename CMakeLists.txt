@@ -47,12 +47,7 @@ set(PCRE2_BUILD_TESTS OFF CACHE BOOL "Build tests" FORCE)
 set(PCRE2_SUPPORT_JIT OFF CACHE BOOL "Support JIT" FORCE)
 add_subdirectory(third_party/pcre2 EXCLUDE_FROM_ALL)
 
-# 6. OpenSSL (Pre-compiled Static Library)
-add_library(openssl_crypto STATIC IMPORTED)
-set_target_properties(openssl_crypto PROPERTIES
-    IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openssl/libcrypto.a
-    INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openssl/include
-)
+# 6. OpenSSL — not linked (crypto_module uses pure-C implementations)
 
 # Shared SDK Target
 add_library(native_luau SHARED
@@ -99,7 +94,6 @@ target_include_directories(native_luau PRIVATE
     third_party/quickjs
     third_party/yyjson/src
     third_party/pcre2/src
-    third_party/openssl/include
 )
 
 # Link SDK dependencies
@@ -110,6 +104,5 @@ target_link_libraries(native_luau PRIVATE
     quickjs
     yyjson
     pcre2-8
-    openssl_crypto
     log # Android log library
 )

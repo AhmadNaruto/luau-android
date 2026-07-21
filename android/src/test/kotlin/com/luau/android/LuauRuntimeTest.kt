@@ -390,4 +390,68 @@ class LuauRuntimeTest {
             runtime.execute(script)
         }
     }
+
+    @Test
+    fun testCryptoModule() {
+        LuauRuntime().use { runtime ->
+            val script = """
+                local crypto = require("crypto")
+
+                -- MD5 known vector: md5("") = "d41d8cd98f00b204e9800998ecf8427e"
+                assert(crypto.md5("") == "d41d8cd98f00b204e9800998ecf8427e",
+                    "MD5 empty failed: " .. crypto.md5(""))
+                assert(crypto.md5("hello") == "5d41402abc4b2a76b9719d911017c592",
+                    "MD5 hello failed: " .. crypto.md5("hello"))
+
+                -- SHA256 known vector: sha256("") = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                assert(crypto.sha256("") == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                    "SHA256 empty failed")
+                assert(crypto.sha256("hello") == "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+                    "SHA256 hello failed: " .. crypto.sha256("hello"))
+
+                -- SHA512 known vector
+                local sha512_empty = crypto.sha512("")
+                local sha512_expected = "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e"
+                assert(sha512_empty == sha512_expected,
+                    "SHA512 empty failed, got: " .. sha512_empty)
+
+                -- Binary output (as_hex = false)
+                local raw_sha256 = crypto.sha256("hello", false)
+                assert(type(raw_sha256) == "string" and #raw_sha256 == 32,
+                    "SHA256 raw should be 32 bytes, got " .. #raw_sha256)
+
+                -- HMAC-SHA256 known vector
+                local hmac_result = crypto.hmac("key", "The quick brown fox jumps over the lazy dog", "sha256")
+                assert(hmac_result == "f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8",
+                    "HMAC-SHA256 failed: " .. hmac_result)
+
+                -- HMAC-MD5
+                local hmac_md5 = crypto.hmac("key", "message", "md5")
+                assert(type(hmac_md5) == "string" and #hmac_md5 == 32,
+                    "HMAC-MD5 should return 32 hex chars")
+
+                -- Random bytes
+                local r1 = crypto.random(16)
+                assert(type(r1) == "string" and #r1 == 16, "random(16) should be 16 bytes")
+                local r2 = crypto.random(16)
+                assert(r1 ~= r2, "two random(16) calls should differ")
+
+                -- UUID v4 format check
+                local uuid = crypto.uuid()
+                assert(type(uuid) == "string" and #uuid == 36, "UUID should be 36 chars: " .. uuid)
+                assert(uuid:sub(9,9) == "-" and uuid:sub(14,14) == "-" and
+                       uuid:sub(19,19) == "-" and uuid:sub(24,24) == "-",
+                    "UUID format invalid: " .. uuid)
+                -- Version nibble should be '4'
+                assert(uuid:sub(15,15) == "4", "UUID version nibble should be 4: " .. uuid)
+                -- Variant nibble should be 8, 9, a, or b
+                local variant = uuid:sub(20,20)
+                assert(variant == "8" or variant == "9" or variant == "a" or variant == "b",
+                    "UUID variant nibble invalid: " .. variant)
+
+                print("Crypto module OK")
+            """.trimIndent()
+            runtime.execute(script)
+        }
+    }
 }
