@@ -52,8 +52,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release" OR NOT CMAKE_BUILD_TYPE)
     add_compile_options(-O3 -flto -fvectorize -fomit-frame-pointer)
 endif()
 
-# 6. OpenSSL — not linked (crypto_module uses pure-C implementations)
-
 # Shared SDK Target
 add_library(native_luau SHARED
     native/core/runtime/runtime.cpp

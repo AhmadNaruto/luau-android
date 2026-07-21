@@ -19,7 +19,7 @@ High-performance, modular Native SDK for Android dedicated to Luau-based extensi
   - `regex` (Powered by **PCRE2** regular expression engine)
   - `url` (Powered by **Lexbor URL**)
   - `encoding` (Powered by **Lexbor Encoding**)
-  - `crypto` (Powered by **OpenSSL**)
+  - `crypto` (Pure C Cryptography Engine for MD5, SHA1, SHA256, SHA512, HMAC, and secure Random/UUID)
   - `buffer` (Zero-copy binary & typed data buffers)
   - `select` (Batch extraction scraping DSL)
   - `util` (String & general utilities)
@@ -40,7 +40,7 @@ luau-android/
 │   ├── core/             # VM runtime, allocator, Luau module loader
 │   ├── modules/          # html, js, json, regex, url, crypto, select, etc.
 │   └── bindings/jni/     # JNI C++ bridge
-├── third_party/          # Clean Git Submodules (luau, lexbor, quickjs, yyjson, pcre2, openssl)
+├── third_party/          # Clean Git Submodules (luau, lexbor, quickjs, yyjson, pcre2)
 ├── patches/              # NDK / Android build patch management
 ├── docs/                 # Architecture & SDK documentation
 ├── benchmarks/           # ARM64 Benchmark results & scripts

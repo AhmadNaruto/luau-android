@@ -10,7 +10,7 @@ Android Application (Kotlin)
  Native Luau Engine (arm64-v8a)
         │
  ┌──────┴──────┬──────────────┬──────────────┬──────────────┬──────────────┐
- Lexbor      QuickJS-NG     yyjson         PCRE2          OpenSSL        Native Modules
+ Lexbor      QuickJS-NG     yyjson         PCRE2          Pure-C         Native Modules
  (HTML/URL)   (JS Exec)     (JSON)        (Regex)        (Crypto)       (Buffer/DSL)
 ```
 
@@ -37,7 +37,7 @@ Android Application (Kotlin)
 - **`regex`** (PCRE2): `regex.compile(pattern, flags)` → Pattern with `match()`, `find()`, `find_all()`, `replace()`, `split()`.
 - **`url`** (Lexbor URL): `url.parse()`, `url.join()`, `url.encode()`, `url.decode()`.
 - **`encoding`** (Lexbor Encoding): `base64_encode()`, `base64_decode()`, `utf8_valid()`, `utf8_len()`, `utf8_sub()`, `utf8_to_utf16le()`, `utf16le_to_utf8()`, `detect()`.
-- **`crypto`** (OpenSSL): `crypto.md5()`, `crypto.sha1()`, `crypto.sha256()`, `crypto.sha512()`, `crypto.hmac()`, `crypto.random()`, `crypto.uuid()`.
+- **`crypto`** (Pure-C): `crypto.md5()`, `crypto.sha1()`, `crypto.sha256()`, `crypto.sha512()`, `crypto.hmac()`, `crypto.random()`, `crypto.uuid()`.
 - **`buffer`**: `buffer.create(size)` → Zero-copy binary/UTF-8 buffer with typed getters/setters (`writeString`, `readString`, `writeFloat64`, `readFloat64`, `writeInt32`, `readInt32`, `slice`).
 - **`select`**: Fluent scraping DSL (`select.from(doc):text(...):attr(...):build()`).
 - **`util`**: `trim()`, `split()`, `join()`, `startswith()`, `endswith()`, `contains()`, `lower()`, `upper()`, `capitalize()`, `sleep()`, `uuid()`.

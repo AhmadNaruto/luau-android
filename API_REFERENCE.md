@@ -16,7 +16,7 @@ This document provides a comprehensive API reference for the **Native Luau Andro
   - [regex (PCRE2 Engine)](#4-regex-pcre2)
   - [url (Lexbor URL)](#5-url-lexbor)
   - [encoding (Lexbor Encoding)](#6-encoding-lexbor)
-  - [crypto (OpenSSL Cryptography)](#7-crypto-openssl)
+  - [crypto (Pure C Cryptography)](#7-crypto-pure-c-cryptography)
   - [buffer (Zero-Copy Data Buffer)](#8-buffer-zero-copy)
   - [select (Fluent Extraction DSL)](#9-select-scraping-dsl)
   - [util (Helper Utilities)](#10-util-utilities)
@@ -280,8 +280,8 @@ Detects text encoding (e.g. `"ascii"`, `"utf-8"`).
 
 ---
 
-### 7. `crypto` (OpenSSL)
-Cryptographic primitives.
+### 7. `crypto` (Pure C Cryptography)
+Lightweight, standalone C implementations for hash digests and cryptographic functions (MD5, SHA1, SHA256, SHA512, HMAC, secure random, UUID v4).
 
 #### Module Methods
 ```lua
