@@ -1,5 +1,7 @@
 package com.luau.android
 
+import org.junit.Assume
+import org.junit.Before
 import org.junit.BeforeClass
 import org.junit.Test
 import java.io.File
@@ -8,34 +10,45 @@ import kotlin.system.measureNanoTime
 class LuauBenchmarkTest {
 
     companion object {
+        private var isNativeLoaded = false
+
         @BeforeClass
         @JvmStatic
         fun setUp() {
             val roots = listOf(File("."), File(".."), File("../android"), File("android"))
-            var loaded = false
             for (r in roots) {
                 val buildDir = File(r, "build")
                 if (buildDir.exists() && buildDir.isDirectory) {
                     val found = buildDir.walkTopDown().find { it.name == "libnative_luau.so" }
                     if (found != null) {
-                        val stlFile = File(found.parentFile, "libc++_shared.so")
-                        if (stlFile.exists()) {
-                            System.load(stlFile.absolutePath)
+                        try {
+                            val stlFile = File(found.parentFile, "libc++_shared.so")
+                            if (stlFile.exists()) {
+                                System.load(stlFile.absolutePath)
+                            }
+                            System.load(found.absolutePath)
+                            isNativeLoaded = true
+                            break
+                        } catch (e: UnsatisfiedLinkError) {
+                            System.err.println("Native library architecture mismatch or load error: ${e.message}")
                         }
-                        System.load(found.absolutePath)
-                        loaded = true
-                        break
                     }
                 }
             }
-            if (!loaded) {
+            if (!isNativeLoaded) {
                 try {
                     System.loadLibrary("native_luau")
+                    isNativeLoaded = true
                 } catch (e: UnsatisfiedLinkError) {
                     System.err.println("Could not load library: ${e.message}")
                 }
             }
         }
+    }
+
+    @Before
+    fun checkNativeLibrary() {
+        Assume.assumeTrue("Skipping benchmark: libnative_luau.so is compiled for ARM64-v8a target ABI and cannot be loaded on host JVM architecture", isNativeLoaded)
     }
 
     private inline fun measureMs(block: () -> Unit): Double {
