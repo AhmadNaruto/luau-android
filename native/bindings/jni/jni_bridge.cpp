@@ -36,7 +36,9 @@ JNIEXPORT jstring JNICALL Java_com_luau_android_LuauRuntime_nativeExecuteScript(
     }
 
     char *err_msg = NULL;
+    runtime->env = (void*)env;
     int status = luau_execute_script(runtime, source, chunkname, (double)timeout_seconds, &err_msg);
+    runtime->env = NULL;
 
     env->ReleaseStringUTFChars(jsource, source);
     if (jchunkname && chunkname) {

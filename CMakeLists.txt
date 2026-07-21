@@ -71,6 +71,7 @@ add_library(native_luau SHARED
     native/modules/util/util_module.cpp
     native/modules/time/time_module.cpp
     native/modules/select/select_module.cpp
+    native/bindings/jni/proxy.cpp
 )
 
 # Header search paths for our library
@@ -80,6 +81,7 @@ target_include_directories(native_luau PRIVATE
     native/core/runtime
     native/core/luau
     native/core/memory
+    native/bindings/jni
     native/modules/html
     native/modules/js
     native/modules/json

@@ -18,6 +18,7 @@
 #include "util_module.h"
 #include "time_module.h"
 #include "select_module.h"
+#include "proxy.h"
 
 static double get_time_seconds(void) {
     struct timeval tv;
@@ -45,6 +46,7 @@ luau_runtime_t* luau_create_runtime(size_t memory_limit) {
     runtime->start_time = 0.0;
     runtime->timeout_seconds = 0.0;
     runtime->is_running = false;
+    runtime->env = NULL;
 
     // Create lua_State with our custom allocator
     runtime->L = lua_newstate(luau_alloc, &runtime->allocator);
@@ -75,6 +77,7 @@ luau_runtime_t* luau_create_runtime(size_t memory_limit) {
     luau_register_module(runtime->L, "util", luaopen_util);
     luau_register_module(runtime->L, "time", luaopen_time);
     luau_register_module(runtime->L, "select", luaopen_select);
+    luau_register_module(runtime->L, "jni", luaopen_jni);
 
     return runtime;
 }

@@ -12,6 +12,7 @@ typedef struct {
     double start_time;       // Execution start time (in seconds)
     double timeout_seconds;  // Max execution time (0 for no timeout)
     bool is_running;
+    void *env;               // JNIEnv* pointer for current execution thread
 } luau_runtime_t;
 
 // Creates a new Luau runtime with a specified memory limit (in bytes, 0 for unlimited)

@@ -122,4 +122,33 @@ class LuauRuntimeTest {
             runtime.execute(script)
         }
     }
+
+    @Test
+    fun testJniProxy() {
+        LuauRuntime().use { runtime ->
+            val script = """
+                local Jni = require("jni")
+                local System = Jni.import("java/lang/System")
+                
+                -- Check static method call
+                local time = System:currentTimeMillis()
+                assert(type(time) == "number")
+                assert(time > 0)
+                
+                -- Check static field retrieval and instance method call
+                local out = System.out
+                assert(type(out) == "userdata")
+                out:println("Hello JNI Proxy from Luau script!")
+                
+                -- Check field access exception (non-existent field should trigger method call failure on invocation, or field get failure)
+                local success, err = pcall(function()
+                    local x = System.nonExistentField
+                    -- If nonExistentField resolves to a method proxy closure, invoking it will fail
+                    x()
+                end)
+                assert(not success)
+            """.trimIndent()
+            runtime.execute(script)
+        }
+    }
 }
