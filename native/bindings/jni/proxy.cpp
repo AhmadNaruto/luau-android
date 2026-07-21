@@ -170,23 +170,39 @@ static int jni_method_call(lua_State *L) {
         if (jarg) env->DeleteLocalRef(jarg);
     }
 
-    jobject result = env->CallStaticObjectMethod(g_helper_class, g_invokeMethod, target_ref->obj, env->NewStringUTF(method_name), jargs);
+    jstring jmethod_name = env->NewStringUTF(method_name);
+    jobject result = env->CallStaticObjectMethod(g_helper_class, g_invokeMethod, target_ref->obj, jmethod_name, jargs);
+    env->DeleteLocalRef(jmethod_name);
     env->DeleteLocalRef(jargs);
 
     if (env->ExceptionCheck()) {
         jthrowable ex = env->ExceptionOccurred();
         env->ExceptionClear();
 
-        jclass ex_class = env->GetObjectClass(ex);
-        jmethodID get_msg = env->GetMethodID(ex_class, "toString", "()Ljava/lang/String;");
-        jstring jmsg = (jstring)env->CallObjectMethod(ex, get_msg);
-        const char *msg_str = env->GetStringUTFChars(jmsg, NULL);
+        char err_buf[512];
+        err_buf[0] = '\0';
 
-        luaL_error(L, "JNI method call '%s' failed: %s", method_name, msg_str);
+        if (ex) {
+            jclass ex_class = env->GetObjectClass(ex);
+            jmethodID get_msg = env->GetMethodID(ex_class, "toString", "()Ljava/lang/String;");
+            jstring jmsg = (jstring)env->CallObjectMethod(ex, get_msg);
+            if (jmsg) {
+                const char *msg_str = env->GetStringUTFChars(jmsg, NULL);
+                if (msg_str) {
+                    snprintf(err_buf, sizeof(err_buf), "JNI method call '%s' failed: %s", method_name, msg_str);
+                    env->ReleaseStringUTFChars(jmsg, msg_str);
+                }
+                env->DeleteLocalRef(jmsg);
+            }
+            env->DeleteLocalRef(ex_class);
+            env->DeleteLocalRef(ex);
+        }
 
-        env->ReleaseStringUTFChars(jmsg, msg_str);
-        env->DeleteLocalRef(jmsg);
-        env->DeleteLocalRef(ex);
+        if (err_buf[0] == '\0') {
+            snprintf(err_buf, sizeof(err_buf), "JNI method call '%s' failed", method_name);
+        }
+
+        luaL_error(L, "%s", err_buf);
         return 0;
     }
 
@@ -208,7 +224,10 @@ static int jni_ref_index(lua_State *L) {
     const char *key = luaL_checkstring(L, 2);
 
     // 1. Try accessing as a field first
-    jobject val = env->CallStaticObjectMethod(g_helper_class, g_getField, ref->obj, env->NewStringUTF(key));
+    jstring jkey = env->NewStringUTF(key);
+    jobject val = env->CallStaticObjectMethod(g_helper_class, g_getField, ref->obj, jkey);
+    env->DeleteLocalRef(jkey);
+
     if (env->ExceptionCheck()) {
         env->ExceptionClear(); // Fail silently, fallback to method closure
 

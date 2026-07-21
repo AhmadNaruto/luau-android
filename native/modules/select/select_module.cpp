@@ -84,21 +84,46 @@ static bool selector_matches(lxb_dom_element_t *el, const char *sel, size_t sel_
     }
 }
 
-static void dfs_find(lxb_dom_node_t *node, dfs_ctx_t *ctx) {
-    if (ctx->found) return;
-    lxb_dom_node_t *child = lxb_dom_node_first_child(node);
-    while (child) {
-        if (child->type == LXB_DOM_NODE_TYPE_ELEMENT) {
-            lxb_dom_element_t *el = lxb_dom_interface_element(child);
-            if (selector_matches(el, ctx->sel, ctx->sel_len)) {
-                ctx->found = child;
-                return;
+static void dfs_find(lxb_dom_node_t *root_node, dfs_ctx_t *ctx) {
+    if (!root_node) return;
+
+    // Fixed capacity stack buffer for fast stack allocation (handles up to 512 nested nodes)
+    lxb_dom_node_t *stack_buf[512];
+    lxb_dom_node_t **stack = stack_buf;
+    size_t stack_cap = 512;
+    size_t stack_size = 0;
+
+    stack[stack_size++] = root_node;
+
+    while (stack_size > 0) {
+        lxb_dom_node_t *curr = stack[--stack_size];
+
+        lxb_dom_node_t *child = lxb_dom_node_first_child(curr);
+        // Push children in reverse order or left-to-right
+        while (child) {
+            if (child->type == LXB_DOM_NODE_TYPE_ELEMENT) {
+                lxb_dom_element_t *el = lxb_dom_interface_element(child);
+                if (selector_matches(el, ctx->sel, ctx->sel_len)) {
+                    ctx->found = child;
+                    if (stack != stack_buf) free(stack);
+                    return;
+                }
+                if (stack_size >= stack_cap) {
+                    stack_cap *= 2;
+                    if (stack == stack_buf) {
+                        stack = (lxb_dom_node_t**)malloc(stack_cap * sizeof(lxb_dom_node_t*));
+                        memcpy(stack, stack_buf, stack_size * sizeof(lxb_dom_node_t*));
+                    } else {
+                        stack = (lxb_dom_node_t**)realloc(stack, stack_cap * sizeof(lxb_dom_node_t*));
+                    }
+                }
+                stack[stack_size++] = child;
             }
-            dfs_find(child, ctx);
-            if (ctx->found) return;
+            child = lxb_dom_node_next(child);
         }
-        child = lxb_dom_node_next(child);
     }
+
+    if (stack != stack_buf) free(stack);
 }
 
 // Get inner text (recursive)

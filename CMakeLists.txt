@@ -47,6 +47,11 @@ set(PCRE2_BUILD_TESTS OFF CACHE BOOL "Build tests" FORCE)
 set(PCRE2_SUPPORT_JIT OFF CACHE BOOL "Support JIT" FORCE)
 add_subdirectory(third_party/pcre2 EXCLUDE_FROM_ALL)
 
+# Optimization compiler flags
+if(CMAKE_BUILD_TYPE STREQUAL "Release" OR NOT CMAKE_BUILD_TYPE)
+    add_compile_options(-O3 -flto -fvectorize -fomit-frame-pointer)
+endif()
+
 # 6. OpenSSL — not linked (crypto_module uses pure-C implementations)
 
 # Shared SDK Target

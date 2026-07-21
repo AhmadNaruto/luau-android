@@ -25,6 +25,13 @@ static int buffer_create(lua_State *L) {
         return 0;
     }
 
+    // Security & OOM Protection: Cap single buffer allocation at 256 MB
+    const size_t MAX_BUFFER_SIZE = 256 * 1024 * 1024;
+    if ((size_t)size > MAX_BUFFER_SIZE) {
+        luaL_error(L, "Buffer allocation size %d exceeds maximum limit of 256MB", size);
+        return 0;
+    }
+
     sdk_buffer_t *buf = (sdk_buffer_t*)lua_newuserdata(L, sizeof(sdk_buffer_t));
     buf->size = (size_t)size;
     buf->own = true;
