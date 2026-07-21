@@ -241,4 +241,32 @@ class LuauRuntimeTest {
             runtime.execute(script)
         }
     }
+
+    @Test
+    fun testJsonModule() {
+        LuauRuntime().use { runtime ->
+            val script = """
+                local json = require("json")
+                local obj = json.parse('{"a": 1, "b": [true, null, "ok"]}')
+                
+                -- Verify parsed values
+                assert(obj.a == 1)
+                assert(obj.b[1] == true)
+                assert(obj.b[2] == nil)
+                assert(obj.b[3] == "ok")
+                
+                -- Verify stringification
+                local str = json.stringify(obj)
+                assert(str ~= nil)
+                
+                -- Parse back and check again
+                local obj2 = json.parse(str)
+                assert(obj2.a == 1)
+                assert(obj2.b[1] == true)
+                assert(obj2.b[2] == nil)
+                assert(obj2.b[3] == "ok")
+            """.trimIndent()
+            runtime.execute(script)
+        }
+    }
 }
