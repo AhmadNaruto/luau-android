@@ -59,6 +59,18 @@ add_library(native_luau SHARED
     native/core/runtime/runtime.cpp
     native/core/runtime/allocator.cpp
     native/bindings/jni/jni_bridge.cpp
+    native/core/luau/loader.cpp
+    native/modules/html/html_module.cpp
+    native/modules/js/js_module.cpp
+    native/modules/json/json_module.cpp
+    native/modules/regex/regex_module.cpp
+    native/modules/url/url_module.cpp
+    native/modules/encoding/encoding_module.cpp
+    native/modules/crypto/crypto_module.cpp
+    native/modules/buffer/buffer_module.cpp
+    native/modules/util/util_module.cpp
+    native/modules/time/time_module.cpp
+    native/modules/select/select_module.cpp
 )
 
 # Header search paths for our library

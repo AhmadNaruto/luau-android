@@ -5,6 +5,20 @@
 #include <string.h>
 #include <sys/time.h>
 
+// Module system headers
+#include "loader.h"
+#include "html_module.h"
+#include "js_module.h"
+#include "json_module.h"
+#include "regex_module.h"
+#include "url_module.h"
+#include "encoding_module.h"
+#include "crypto_module.h"
+#include "buffer_module.h"
+#include "util_module.h"
+#include "time_module.h"
+#include "select_module.h"
+
 static double get_time_seconds(void) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
@@ -47,6 +61,20 @@ luau_runtime_t* luau_create_runtime(size_t memory_limit) {
 
     // Set interrupt callback
     lua_callbacks(runtime->L)->interrupt = luau_interrupt_callback;
+
+    // Initialize modules loader and register native modules
+    luau_init_modules(runtime->L);
+    luau_register_module(runtime->L, "html", luaopen_html);
+    luau_register_module(runtime->L, "js", luaopen_js);
+    luau_register_module(runtime->L, "json", luaopen_json);
+    luau_register_module(runtime->L, "regex", luaopen_regex);
+    luau_register_module(runtime->L, "url", luaopen_url);
+    luau_register_module(runtime->L, "encoding", luaopen_encoding);
+    luau_register_module(runtime->L, "crypto", luaopen_crypto);
+    luau_register_module(runtime->L, "buffer", luaopen_custom_buffer);
+    luau_register_module(runtime->L, "util", luaopen_util);
+    luau_register_module(runtime->L, "time", luaopen_time);
+    luau_register_module(runtime->L, "select", luaopen_select);
 
     return runtime;
 }

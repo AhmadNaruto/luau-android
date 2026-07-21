@@ -92,4 +92,34 @@ class LuauRuntimeTest {
             }
         }
     }
+
+    @Test
+    fun testModuleLoading() {
+        LuauRuntime().use { runtime ->
+            val script = """
+                local html = require("html")
+                local json = require("json")
+                local regex = require("regex")
+                local select_mod = require("select")
+                local js = require("js")
+                local crypto = require("crypto")
+                local buffer = require("buffer")
+                local util = require("util")
+                local time = require("time")
+                
+                assert(type(html) == "table")
+                assert(type(json) == "table")
+                assert(type(regex) == "table")
+                assert(type(select_mod) == "table")
+                assert(type(js) == "table")
+                assert(type(crypto) == "table")
+                assert(type(buffer) == "table")
+                assert(type(util) == "table")
+                assert(type(time) == "table")
+                
+                print("All modules loaded successfully!")
+            """.trimIndent()
+            runtime.execute(script)
+        }
+    }
 }
