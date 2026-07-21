@@ -342,4 +342,52 @@ class LuauRuntimeTest {
             runtime.execute(script)
         }
     }
+
+    @Test
+    fun testEncodingModule() {
+        LuauRuntime().use { runtime ->
+            val script = """
+                local enc = require("encoding")
+
+                -- base64 encode/decode round-trip
+                local raw = "Hello, World! \0\1\2\255"
+                local b64 = enc.base64_encode(raw)
+                assert(b64 ~= nil and #b64 > 0, "base64_encode returned empty")
+                local decoded = enc.base64_decode(b64)
+                assert(decoded == raw, "base64 round-trip failed")
+
+                -- known vector
+                assert(enc.base64_encode("Man") == "TWFu", "base64 encode 'Man' failed")
+                assert(enc.base64_decode("TWFu") == "Man", "base64 decode 'TWFu' failed")
+                assert(enc.base64_encode("Ma") == "TWE=", "base64 encode 'Ma' failed: " .. enc.base64_encode("Ma"))
+                assert(enc.base64_encode("M") == "TQ==", "base64 encode 'M' failed")
+
+                -- UTF-8 validation
+                assert(enc.utf8_valid("hello") == true,  "ASCII should be valid UTF-8")
+                assert(enc.utf8_valid("こんにちは") == true, "Japanese should be valid UTF-8")
+                assert(enc.utf8_valid("\xFF\xFE") == false, "Invalid bytes should fail")
+
+                -- UTF-8 codepoint length
+                assert(enc.utf8_len("hello") == 5,   "ASCII len should be 5")
+                assert(enc.utf8_len("こんにちは") == 5, "Japanese len should be 5")
+
+                -- UTF-8 sub
+                assert(enc.utf8_sub("hello world", 1, 5) == "hello", "utf8_sub 1..5 failed")
+                assert(enc.utf8_sub("こんにちは", 2, 3) == "んに", "utf8_sub Japanese 2..3 failed")
+
+                -- UTF-8 ↔ UTF-16LE round-trip
+                local utf16 = enc.utf8_to_utf16le("hello")
+                assert(utf16 ~= nil and #utf16 == 10, "UTF-16LE should be 10 bytes for 'hello'")
+                local back = enc.utf16le_to_utf8(utf16)
+                assert(back == "hello", "UTF-16LE→UTF-8 round-trip failed")
+
+                -- Encoding detection
+                assert(enc.detect("hello") == "ascii", "pure ASCII should detect as ascii")
+                assert(enc.detect("こんにちは") == "utf-8", "Japanese should detect as utf-8")
+
+                print("Encoding module OK")
+            """.trimIndent()
+            runtime.execute(script)
+        }
+    }
 }
