@@ -39,5 +39,7 @@ class Element internal constructor(
 
     fun className(): String = attr("class")
 
+    fun ownerDocument(): Document? = if (docHandlePtr != 0L) Document(docHandlePtr) else null
+
     override fun toString(): String = text()
 }

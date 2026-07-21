@@ -10,7 +10,8 @@ class LexSoup private constructor() {
 
         @JvmStatic
         fun parse(html: String, baseUri: String): Document {
-            return parse(html)
+            val handlePtr = LexSoupBridge.nativeParse(html)
+            return Document(handlePtr).apply { locationUrl = baseUri }
         }
     }
 }

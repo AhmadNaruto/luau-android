@@ -25,4 +25,7 @@ void luau_destroy_runtime(luau_runtime_t *runtime);
 // If an error occurs, returns non-zero and sets *out_error to a heap-allocated error string.
 int luau_execute_script(luau_runtime_t *runtime, const char *source, const char *chunkname, double timeout_seconds, char **out_error);
 
+// Evaluates a Luau expression/script and returns the resulting string (e.g. JSON string).
+int luau_eval_json(luau_runtime_t *runtime, const char *source, double timeout_seconds, char **out_json, char **out_error);
+
 #endif // LUAU_RUNTIME_H

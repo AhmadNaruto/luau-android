@@ -30,6 +30,14 @@ class Document internal constructor(
         return selectFirst("title")?.text() ?: ""
     }
 
+    var locationUrl: String = ""
+
+    fun location(): String = locationUrl
+
+    fun outerHtml(): String = text()
+
+    fun html(): String = text()
+
     fun text(): String {
         if (rootNodePtr == 0L) return ""
         return LexSoupBridge.nativeText(rootNodePtr).trim()

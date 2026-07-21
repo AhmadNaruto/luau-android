@@ -54,4 +54,33 @@ JNIEXPORT jstring JNICALL Java_com_luau_android_LuauRuntime_nativeExecuteScript(
     return NULL; // Success
 }
 
+JNIEXPORT jstring JNICALL Java_com_luau_android_LuauRuntime_nativeEvalJson(
+    JNIEnv *env, jobject thiz, jlong handle, jstring jsource, jdouble timeout_seconds) {
+
+    luau_runtime_t *runtime = (luau_runtime_t*)(uintptr_t)handle;
+    if (!runtime || !jsource) return NULL;
+
+    const char *source = env->GetStringUTFChars(jsource, NULL);
+    char *out_json = NULL;
+    char *err_msg = NULL;
+
+    runtime->env = (void*)env;
+    int status = luau_eval_json(runtime, source, (double)timeout_seconds, &out_json, &err_msg);
+    runtime->env = NULL;
+
+    env->ReleaseStringUTFChars(jsource, source);
+
+    if (status != 0) {
+        if (err_msg) free(err_msg);
+        return NULL;
+    }
+
+    jstring result = NULL;
+    if (out_json) {
+        result = env->NewStringUTF(out_json);
+        free(out_json);
+    }
+    return result;
+}
+
 }

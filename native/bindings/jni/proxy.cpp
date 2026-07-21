@@ -154,7 +154,7 @@ static int jni_method_call(lua_State *L) {
     // Skip target if called via colon syntax
     if (lua_gettop(L) >= 1 && lua_isuserdata(L, 1)) {
         jni_ref_t *arg1_ref = (jni_ref_t*)lua_touserdata(L, 1);
-        if (arg1_ref && arg1_ref->obj == target_ref->obj) {
+        if (arg1_ref && (arg1_ref->obj == target_ref->obj || env->IsSameObject(arg1_ref->obj, target_ref->obj))) {
             start_arg = 2;
         }
     }

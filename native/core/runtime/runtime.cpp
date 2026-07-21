@@ -133,18 +133,68 @@ luau_runtime_t* luau_create_runtime(size_t memory_limit) {
             return re:match(text)
         end
 
+        -- Network HTTP Helpers
+        function http_get(url, headers)
+            local ok, Jni = pcall(require, "jni")
+            if ok and Jni then
+                local okBridge, Bridge = pcall(Jni.import, "my/noveldokusha/scraper/NetworkBridge")
+                if okBridge and Bridge then
+                    local res = Bridge:get(url)
+                    return {
+                        success = res.success == true,
+                        body = tostring(res.body or ""),
+                        statusCode = tonumber(res.statusCode) or 500
+                    }
+                end
+            end
+            return { success = false, body = "", statusCode = 500 }
+        end
+
+        function http_post(url, body, headers)
+            local ok, Jni = pcall(require, "jni")
+            if ok and Jni then
+                local okBridge, Bridge = pcall(Jni.import, "my/noveldokusha/scraper/NetworkBridge")
+                if okBridge and Bridge then
+                    local res = Bridge:post(url, tostring(body or ""))
+                    return {
+                        success = res.success == true,
+                        body = tostring(res.body or ""),
+                        statusCode = tonumber(res.statusCode) or 500
+                    }
+                end
+            end
+            return { success = false, body = "", statusCode = 500 }
+        end
+
         -- HTML helpers
+        local function make_el(node, fullHtml)
+            if not node then return nil end
+            local el = {
+                text = node:text() or "",
+                html = fullHtml or "",
+                href = node:attr("href") or "",
+                src = node:attr("src") or node:attr("data-src") or ""
+            }
+            setmetatable(el, {
+                __index = function(t, k)
+                    if k == "attr" then
+                        return function(self, attr_name)
+                            return node:attr(attr_name) or ""
+                        end
+                    end
+                    return rawget(t, k)
+                end
+            })
+            return el
+        end
+
         function html_select(body, selector)
             if not body or not selector then return {} end
             local doc = html.parse(body)
             local nodes = doc:querySelectorAll(selector)
             local res = {}
             for i, node in ipairs(nodes) do
-                table.insert(res, {
-                    text = node:text(),
-                    html = body,
-                    href = node:attr("href") or ""
-                })
+                table.insert(res, make_el(node, body))
             end
             return res
         end
@@ -153,28 +203,50 @@ luau_runtime_t* luau_create_runtime(size_t memory_limit) {
             if not body or not selector then return nil end
             local doc = html.parse(body)
             local node = doc:querySelector(selector)
-            if not node then return nil end
-            return {
-                text = node:text(),
-                html = body,
-                href = node:attr("href") or ""
-            }
+            return make_el(node, body)
         end
 
         function html_attr(html_str, selector, attr_name)
             if not html_str or not selector or not attr_name then return "" end
             local doc = html.parse(html_str)
+            if selector == "*" then
+                local root = doc:querySelector("*")
+                if not root then return "" end
+                return root:attr(attr_name) or ""
+            end
             local node = doc:querySelector(selector)
             if not node then return "" end
             return node:attr(attr_name) or ""
         end
 
         function html_text(html_str, selector)
-            if not html_str or not selector then return "" end
+            if not html_str then return "" end
             local doc = html.parse(html_str)
+            if not selector or selector == "" or selector == "*" then
+                return doc:text() or ""
+            end
             local node = doc:querySelector(selector)
             if not node then return "" end
             return node:text() or ""
+        end
+
+        function html_remove(body, ...)
+            if not body then return "" end
+            local doc = html.parse(body)
+            local selectors = {...}
+            for _, sel in ipairs(selectors) do
+                if sel and sel ~= "" then
+                    local nodes = doc:querySelectorAll(sel)
+                    for _, node in ipairs(nodes) do
+                        node:remove()
+                    end
+                end
+            end
+            return doc:html() or body
+        end
+
+        function log_error(msg)
+            print("LUAU ERROR: " .. tostring(msg or ""))
         end
     )";
 
@@ -248,3 +320,60 @@ int luau_execute_script(luau_runtime_t *runtime, const char *source, const char 
 
     return status;
 }
+
+int luau_eval_json(luau_runtime_t *runtime, const char *source, double timeout_seconds, char **out_json, char **out_error) {
+    if (!runtime || !source) {
+        if (out_error) *out_error = strdup("Invalid arguments");
+        return -1;
+    }
+
+    lua_CompileOptions compile_options;
+    memset(&compile_options, 0, sizeof(compile_options));
+    compile_options.optimizationLevel = 1;
+    compile_options.debugLevel = 1;
+
+    size_t bytecode_size = 0;
+    char *bytecode = luau_compile(source, strlen(source), &compile_options, &bytecode_size);
+    if (!bytecode) {
+        if (out_error) *out_error = strdup("Compilation failed");
+        return -1;
+    }
+
+    int status = luau_load(runtime->L, "=eval", bytecode, bytecode_size, 0);
+    free(bytecode);
+
+    if (status != 0) {
+        if (out_error) {
+            const char *err = lua_tostring(runtime->L, -1);
+            *out_error = strdup(err ? err : "Syntax error");
+        }
+        lua_pop(runtime->L, 1);
+        return status;
+    }
+
+    runtime->timeout_seconds = timeout_seconds;
+    runtime->start_time = get_time_seconds();
+    runtime->is_running = true;
+
+    status = lua_pcall(runtime->L, 0, 1, 0);
+
+    runtime->is_running = false;
+
+    if (status != 0) {
+        if (out_error) {
+            const char *err = lua_tostring(runtime->L, -1);
+            *out_error = strdup(err ? err : "Runtime error");
+        }
+        lua_pop(runtime->L, 1);
+        return status;
+    }
+
+    if (lua_isstring(runtime->L, -1)) {
+        size_t len = 0;
+        const char *str = lua_tolstring(runtime->L, -1, &len);
+        if (out_json && str) *out_json = strdup(str);
+    }
+    lua_pop(runtime->L, 1);
+    return 0;
+}
+
