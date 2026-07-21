@@ -1,0 +1,18 @@
+[submodule "third_party/luau"]
+	path = third_party/luau
+	url = https://github.com/luau-lang/luau
+[submodule "third_party/lexbor"]
+	path = third_party/lexbor
+	url = https://github.com/lexbor/lexbor
+[submodule "third_party/quickjs"]
+	path = third_party/quickjs
+	url = https://github.com/quickjs-ng/quickjs
+[submodule "third_party/yyjson"]
+	path = third_party/yyjson
+	url = https://github.com/ibireme/yyjson
+[submodule "third_party/pcre2"]
+	path = third_party/pcre2
+	url = https://github.com/PCRE2Project/pcre2
+[submodule "third_party/openssl"]
+	path = third_party/openssl
+	url = https://github.com/openssl/openssl

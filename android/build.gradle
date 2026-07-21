@@ -1,0 +1,52 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+android {
+    namespace 'com.luau.android'
+    compileSdk 34
+    ndkVersion '28.2.13676358'
+
+    defaultConfig {
+        minSdk 24
+        targetSdk 34
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        externalNativeBuild {
+            cmake {
+                abiFilters 'arm64-v8a'
+                arguments "-DANDROID_STL=c++_shared",
+                          "-DCMAKE_EXE_LINKER_FLAGS=-L/data/data/com.termux/files/usr/lib",
+                          "-DCMAKE_SHARED_LINKER_FLAGS=-L/data/data/com.termux/files/usr/lib"
+            }
+        }
+    }
+
+    sourceSets {
+        main {
+            java.srcDirs = ['kotlin']
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path "../CMakeLists.txt"
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    
+    // Core Android test libraries
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test:runner:1.5.2'
+    androidTestImplementation 'androidx.test:rules:1.5.0'
+}

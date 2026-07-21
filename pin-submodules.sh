@@ -10,7 +10,10 @@ PIN_FILE="$ROOT/.submodule-pins"
 cd "$ROOT"
 > "$PIN_FILE"
 
-git submodule--helper list | while read -r _mode sha _stage path; do
+git submodule status | while read -r sha path rest; do
+    sha="${sha#+}"
+    sha="${sha#-}"
+    sha="${sha#U}"
     name="$(basename "$path")"
     date="$(git -C "$path" show -s --format=%ci "$sha")"
     echo "$name $sha # $date" >> "$PIN_FILE"

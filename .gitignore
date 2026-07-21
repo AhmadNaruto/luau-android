@@ -1,0 +1,15 @@
+# Gradle build directories
+build/
+.gradle/
+android/build/
+
+# C++ build directories
+.cxx/
+android/.cxx/
+
+# Local configurations
+local.properties
+.submodule-pins.tmp
+
+# OS files
+.DS_Store

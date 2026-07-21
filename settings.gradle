@@ -1,0 +1,2 @@
+rootProject.name = 'luau-android'
+include ':android'
