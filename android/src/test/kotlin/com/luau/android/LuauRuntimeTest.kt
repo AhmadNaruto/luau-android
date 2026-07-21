@@ -269,4 +269,32 @@ class LuauRuntimeTest {
             runtime.execute(script)
         }
     }
+
+    @Test
+    fun testRegexModule() {
+        LuauRuntime().use { runtime ->
+            val script = """
+                local regex = require("regex")
+                local re = regex.compile("(?<tag><[^>]+>)")
+                
+                -- Check matching
+                local match = re:match("hello <div> world")
+                assert(match ~= nil)
+                assert(match[0] == "<div>") -- full match
+                assert(match[1] == "<div>") -- capture group 1
+                assert(match.tag == "<div>") -- named capture group
+                
+                -- Check non-matching
+                local no_match = re:match("hello world")
+                assert(no_match == nil)
+                
+                -- Check invalid regex
+                local success, err = pcall(function()
+                    regex.compile("([invalid")
+                end)
+                assert(not success)
+            """.trimIndent()
+            runtime.execute(script)
+        }
+    }
 }
