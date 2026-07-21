@@ -70,6 +70,7 @@ add_library(native_luau SHARED
     native/modules/time/time_module.cpp
     native/modules/select/select_module.cpp
     native/bindings/jni/proxy.cpp
+    native/bindings/jni/lexsoup_jni.cpp
 )
 
 # Header search paths for our library
