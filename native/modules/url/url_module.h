@@ -1,8 +1,12 @@
-#ifndef URL_MODULE_H
-#define URL_MODULE_H
-
+#pragma once
 #include "lua.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 int luaopen_url(lua_State *L);
 
-#endif // URL_MODULE_H
+#ifdef __cplusplus
+}
+#endif

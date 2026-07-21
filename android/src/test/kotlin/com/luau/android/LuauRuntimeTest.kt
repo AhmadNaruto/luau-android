@@ -297,4 +297,49 @@ class LuauRuntimeTest {
             runtime.execute(script)
         }
     }
+
+    @Test
+    fun testUrlModule() {
+        LuauRuntime().use { runtime ->
+            val script = """
+                local url = require("url")
+
+                -- url.parse: full URL
+                local parsed = url.parse("https://user:pass@example.com:8080/path/to/page?q=hello#section")
+                assert(parsed ~= nil, "parse returned nil")
+                assert(parsed.scheme == "https", "expected scheme=https, got " .. tostring(parsed.scheme))
+                assert(parsed.host   == "example.com", "expected host=example.com, got " .. tostring(parsed.host))
+                assert(parsed.port   == 8080, "expected port=8080, got " .. tostring(parsed.port))
+                assert(parsed.path   ~= nil and #parsed.path > 0, "expected non-empty path")
+                assert(parsed.href   ~= nil and #parsed.href > 0, "expected non-empty href")
+
+                -- url.parse: simple URL
+                local simple = url.parse("http://example.com/")
+                assert(simple.scheme == "http", "expected http scheme")
+                assert(simple.host   == "example.com", "expected example.com host")
+                assert(simple.port   == nil, "expected nil port for default port")
+
+                -- url.encode / url.decode round-trip
+                local raw     = "hello world & foo=bar"
+                local encoded = url.encode(raw)
+                assert(encoded ~= nil, "encode returned nil")
+                assert(not encoded:find(" "), "encoded string should have no spaces")
+                local decoded = url.decode(encoded)
+                assert(decoded == raw, "decode(encode(raw)) ~= raw: " .. tostring(decoded))
+
+                -- url.decode: + as space
+                local plus_decoded = url.decode("hello+world")
+                assert(plus_decoded == "hello world", "expected + decoded to space")
+
+                -- url.join: resolve relative URL against base
+                local joined = url.join("https://example.com/base/page", "/other/path")
+                assert(joined ~= nil, "join returned nil")
+                assert(joined:find("example.com") ~= nil, "joined URL should contain host")
+                assert(joined:find("/other/path") ~= nil, "joined URL should contain /other/path")
+
+                print("URL module OK")
+            """.trimIndent()
+            runtime.execute(script)
+        }
+    }
 }
