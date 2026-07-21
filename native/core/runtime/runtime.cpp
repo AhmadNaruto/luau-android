@@ -79,6 +79,111 @@ luau_runtime_t* luau_create_runtime(size_t memory_limit) {
     luau_register_module(runtime->L, "select", luaopen_select);
     luau_register_module(runtime->L, "jni", luaopen_jni);
 
+    // Initialize global compatibility helpers for novelx-sources extensions
+    static const char *COMPATIBILITY_SHIM_SCRIPT = R"(
+        local html   = require("html")
+        local regex  = require("regex")
+        local url    = require("url")
+        local util   = require("util")
+
+        -- String helpers
+        string_trim        = util.trim
+        string_starts_with = util.startswith
+        string_ends_with   = util.endswith
+        string_contains    = util.contains
+        string_lower       = util.lower
+        string_upper       = util.upper
+        string_capitalize  = util.capitalize
+
+        function string_normalize(str)
+            if not str then return "" end
+            return (str:gsub("%s+", " "))
+        end
+
+        function string_clean(str)
+            if not str then return "" end
+            return util.trim(string_normalize(str))
+        end
+
+        -- URL helpers
+        url_resolve = function(base, href)
+            if not href or href == "" then return "" end
+            if not base or base == "" then return href end
+            if href:find("^https?://") or href:find("^http://") then return href end
+            if href:find("^//") then return "https:" .. href end
+            local ok, res = pcall(url.join, base, href)
+            if ok and res and #res > 0 then return res end
+            return href
+        end
+        url_encode = url.encode
+        url_decode = url.decode
+
+        -- Regex helpers
+        function regex_replace(text, pattern, replacement)
+            if not text or not pattern then return text or "" end
+            local ok, re = pcall(regex.compile, pattern)
+            if not ok or not re then return text end
+            return re:replace(text, replacement or "", true)
+        end
+
+        function regex_match(text, pattern)
+            if not text or not pattern then return nil end
+            local ok, re = pcall(regex.compile, pattern)
+            if not ok or not re then return nil end
+            return re:match(text)
+        end
+
+        -- HTML helpers
+        function html_select(body, selector)
+            if not body or not selector then return {} end
+            local doc = html.parse(body)
+            local nodes = doc:querySelectorAll(selector)
+            local res = {}
+            for i, node in ipairs(nodes) do
+                table.insert(res, {
+                    text = node:text(),
+                    html = body,
+                    href = node:attr("href") or ""
+                })
+            end
+            return res
+        end
+
+        function html_select_first(body, selector)
+            if not body or not selector then return nil end
+            local doc = html.parse(body)
+            local node = doc:querySelector(selector)
+            if not node then return nil end
+            return {
+                text = node:text(),
+                html = body,
+                href = node:attr("href") or ""
+            }
+        end
+
+        function html_attr(html_str, selector, attr_name)
+            if not html_str or not selector or not attr_name then return "" end
+            local doc = html.parse(html_str)
+            local node = doc:querySelector(selector)
+            if not node then return "" end
+            return node:attr(attr_name) or ""
+        end
+
+        function html_text(html_str, selector)
+            if not html_str or not selector then return "" end
+            local doc = html.parse(html_str)
+            local node = doc:querySelector(selector)
+            if not node then return "" end
+            return node:text() or ""
+        end
+    )";
+
+    char *shim_err = NULL;
+    luau_execute_script(runtime, COMPATIBILITY_SHIM_SCRIPT, "=compat_shim", 0.0, &shim_err);
+    if (shim_err) {
+        free(shim_err);
+    }
+
     return runtime;
 }
 

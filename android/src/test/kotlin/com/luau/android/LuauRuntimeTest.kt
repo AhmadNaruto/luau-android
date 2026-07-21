@@ -679,4 +679,36 @@ class LuauRuntimeTest {
             runtime.execute(script)
         }
     }
+
+    @Test
+    fun testNovelXSourcesCompatibilityShim() {
+        LuauRuntime().use { runtime ->
+            val script = """
+                -- Test string & regex global helpers
+                assert(string_trim("  hello  ") == "hello")
+                assert(string_starts_with("https://site.com", "https"))
+                assert(string_ends_with("image.png", ".png"))
+                assert(string_contains("hello world", "world"))
+                assert(string_clean("  hello   world  ") == "hello world")
+                assert(url_resolve("https://example.com/base/", "page.html") == "https://example.com/base/page.html")
+                assert(regex_replace("apple 123", "[0-9]+", "NUM") == "apple NUM")
+
+                -- Test HTML global helpers
+                local html_data = [[<div class="list"><a href="/book/1" title="Book Title">Link</a></div>]]
+                local items = html_select(html_data, ".list a")
+                assert(#items == 1)
+                assert(items[1].href == "/book/1")
+                assert(items[1].text == "Link")
+
+                local first = html_select_first(html_data, ".list a")
+                assert(first ~= nil and first.text == "Link")
+
+                local title = html_attr(html_data, ".list a", "title")
+                assert(title == "Book Title")
+
+                print("novelx-sources compatibility shim OK")
+            """.trimIndent()
+            runtime.execute(script)
+        }
+    }
 }

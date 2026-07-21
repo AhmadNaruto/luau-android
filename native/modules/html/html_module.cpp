@@ -20,37 +20,92 @@ static void doc_handle_release(native_html_doc_handle_t *h) {
     }
 }
 
-// Check if node matches selector (.class, #id, tag)
-static bool match_node(lxb_dom_node_t *node, const char *selector) {
-    if (node->type != LXB_DOM_NODE_TYPE_ELEMENT) return false;
-    lxb_dom_element_t *el = (lxb_dom_element_t*)node;
-
-    if (selector[0] == '.') {
-        const char *class_name = selector + 1;
-        size_t len = 0;
-        const lxb_char_t *val = lxb_dom_element_get_attribute(el, (const lxb_char_t*)"class", 5, &len);
-        if (val) {
-            std::string s((const char*)val, len);
-            size_t pos = s.find(class_name);
-            if (pos != std::string::npos) {
-                bool left_ok = (pos == 0 || s[pos - 1] == ' ');
-                bool right_ok = (pos + strlen(class_name) == s.length() || s[pos + strlen(class_name)] == ' ');
-                if (left_ok && right_ok) return true;
+static bool match_single_selector(lxb_dom_element_t *el, const char *sel, size_t sel_len) {
+    if (sel_len == 0) return false;
+    if (sel[0] == '.') {
+        size_t vlen = 0;
+        const lxb_char_t *cls = lxb_dom_element_get_attribute(el, (const lxb_char_t*)"class", 5, &vlen);
+        if (!cls || vlen == 0) return false;
+        const char *class_str = (const char*)cls;
+        const char *target = sel + 1;
+        size_t tlen = sel_len - 1;
+        size_t ci = 0;
+        while (ci < vlen) {
+            while (ci < vlen && class_str[ci] == ' ') ci++;
+            size_t start = ci;
+            while (ci < vlen && class_str[ci] != ' ') ci++;
+            size_t wlen = ci - start;
+            if (wlen == tlen && memcmp(class_str + start, target, tlen) == 0) {
+                return true;
             }
         }
-    } else if (selector[0] == '#') {
-        const char *id_val = selector + 1;
-        size_t len = 0;
-        const lxb_char_t *val = lxb_dom_element_get_attribute(el, (const lxb_char_t*)"id", 2, &len);
-        if (val && len == strlen(id_val) && memcmp(val, id_val, len) == 0) {
-            return true;
-        }
+        return false;
+    } else if (sel[0] == '#') {
+        size_t vlen = 0;
+        const lxb_char_t *id_attr = lxb_dom_element_get_attribute(el, (const lxb_char_t*)"id", 2, &vlen);
+        if (!id_attr || vlen == 0) return false;
+        return (vlen == sel_len - 1 && memcmp(id_attr, sel + 1, vlen) == 0);
+    } else if (sel[0] == '[') {
+        const char *close_bracket = (const char*)memchr(sel, ']', sel_len);
+        if (!close_bracket) return false;
+        size_t attr_len = close_bracket - sel - 1;
+        const char *attr_name = sel + 1;
+        size_t vlen = 0;
+        const lxb_char_t *attr_val = lxb_dom_element_get_attribute(el, (const lxb_char_t*)attr_name, attr_len, &vlen);
+        return (attr_val != NULL);
     } else {
-        size_t len = 0;
-        const lxb_char_t *name = lxb_dom_element_qualified_name(el, &len);
-        if (name && len == strlen(selector) && memcmp(name, selector, len) == 0) {
-            return true;
+        const char *bracket = (const char*)memchr(sel, '[', sel_len);
+        size_t tag_len = bracket ? (size_t)(bracket - sel) : sel_len;
+        size_t vlen = 0;
+        const lxb_char_t *name = lxb_dom_element_qualified_name(el, &vlen);
+        if (!name || vlen != tag_len || memcmp(name, sel, tag_len) != 0) {
+            return false;
         }
+        if (bracket) {
+            const char *close_bracket = (const char*)memchr(bracket, ']', sel_len - tag_len);
+            if (!close_bracket) return false;
+            size_t attr_len = close_bracket - bracket - 1;
+            const char *attr_name = bracket + 1;
+            size_t aval_len = 0;
+            const lxb_char_t *attr_val = lxb_dom_element_get_attribute(el, (const lxb_char_t*)attr_name, attr_len, &aval_len);
+            return (attr_val != NULL && aval_len > 0);
+        }
+        return true;
+    }
+}
+
+static bool match_node(lxb_dom_node_t *node, const char *selector) {
+    if (!node || node->type != LXB_DOM_NODE_TYPE_ELEMENT) return false;
+    lxb_dom_element_t *el = (lxb_dom_element_t*)node;
+
+    const char *last_space = strrchr(selector, ' ');
+    if (!last_space) {
+        return match_single_selector(el, selector, strlen(selector));
+    }
+
+    const char *target_sel = last_space + 1;
+    if (*target_sel == '>') target_sel++;
+    while (*target_sel == ' ') target_sel++;
+    if (*target_sel == '\0') return false;
+
+    if (!match_single_selector(el, target_sel, strlen(target_sel))) {
+        return false;
+    }
+
+    const char *first_token = selector;
+    size_t first_len = last_space - selector;
+    while (first_len > 0 && (first_token[first_len - 1] == ' ' || first_token[first_len - 1] == '>')) {
+        first_len--;
+    }
+
+    lxb_dom_node_t *parent = node->parent;
+    while (parent) {
+        if (parent->type == LXB_DOM_NODE_TYPE_ELEMENT) {
+            if (match_single_selector((lxb_dom_element_t*)parent, first_token, first_len)) {
+                return true;
+            }
+        }
+        parent = parent->parent;
     }
     return false;
 }
@@ -199,6 +254,41 @@ static int html_node_attr(lua_State *L) {
     return 1;
 }
 
+static void find_all_nodes_dfs(lxb_dom_node_t *node, const char *selector, lua_State *L, native_html_doc_handle_t *handle, int *count) {
+    if (!node) return;
+    if (match_node(node, selector)) {
+        push_html_node(L, node, handle);
+        lua_rawseti(L, -2, ++(*count));
+    }
+
+    lxb_dom_node_t *child = node->first_child;
+    while (child) {
+        find_all_nodes_dfs(child, selector, L, handle, count);
+        child = child->next;
+    }
+}
+
+static int html_doc_querySelectorAll(lua_State *L) {
+    html_doc_t *html_doc = (html_doc_t*)luaL_checkudata(L, 1, "LuauHtmlDoc");
+    const char *selector = luaL_checkstring(L, 2);
+
+    lxb_dom_node_t *root = lxb_dom_document_root((lxb_dom_document_t*)html_doc->handle->lexbor_doc);
+    lua_newtable(L);
+    int count = 0;
+    find_all_nodes_dfs(root, selector, L, html_doc->handle, &count);
+    return 1;
+}
+
+static int html_node_querySelectorAll(lua_State *L) {
+    html_node_t *html_node = (html_node_t*)luaL_checkudata(L, 1, "LuauHtmlNode");
+    const char *selector = luaL_checkstring(L, 2);
+
+    lua_newtable(L);
+    int count = 0;
+    find_all_nodes_dfs(html_node->node, selector, L, html_node->handle, &count);
+    return 1;
+}
+
 int luaopen_html(lua_State *L) {
     // 1. Create metatable for LuauHtmlDoc
     luaL_newmetatable(L, "LuauHtmlDoc");
@@ -208,6 +298,8 @@ int luaopen_html(lua_State *L) {
     lua_newtable(L);
     lua_pushcfunction(L, html_doc_querySelector, "querySelector");
     lua_setfield(L, -2, "querySelector");
+    lua_pushcfunction(L, html_doc_querySelectorAll, "querySelectorAll");
+    lua_setfield(L, -2, "querySelectorAll");
     lua_setfield(L, -2, "__index");
     lua_pop(L, 1);
 
@@ -219,6 +311,8 @@ int luaopen_html(lua_State *L) {
     lua_newtable(L);
     lua_pushcfunction(L, html_node_querySelector, "querySelector");
     lua_setfield(L, -2, "querySelector");
+    lua_pushcfunction(L, html_node_querySelectorAll, "querySelectorAll");
+    lua_setfield(L, -2, "querySelectorAll");
     lua_pushcfunction(L, html_node_text, "text");
     lua_setfield(L, -2, "text");
     lua_pushcfunction(L, html_node_tag, "tag");
