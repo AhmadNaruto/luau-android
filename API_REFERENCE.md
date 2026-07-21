@@ -9,6 +9,7 @@ This document provides a comprehensive API reference for the **Native Luau Andro
 - [Kotlin API](#kotlin-api)
   - [LuauRuntime](#luauruntime)
   - [LuauException](#luauexception)
+  - [LexSoup (Drop-in JSoup Replacement)](#lexsoup-drop-in-jsoup-replacement)
 - [Native Luau Modules](#native-luau-modules)
   - [html (Lexbor HTML Parser)](#1-html-lexbor)
   - [js (QuickJS-NG Engine)](#2-js-quickjs-ng)
@@ -22,6 +23,7 @@ This document provides a comprehensive API reference for the **Native Luau Andro
   - [util (Helper Utilities)](#10-util-utilities)
   - [time (Time & Timing)](#11-time-date--timing)
   - [jni (Java Native Interface Proxy)](#12-jni-android-java-proxy)
+  - [novelx-sources Global Compatibility Shim](#13-novelx-sources-global-compatibility-shim)
 
 ---
 
@@ -60,6 +62,44 @@ Destroys the Luau VM and frees all associated native memory resources.
 `com.luau.android.LuauException : Exception`
 
 Exception thrown when script compilation, execution, memory allocation, or timeout fails.
+
+---
+
+### `LexSoup` (Drop-in JSoup Replacement)
+`com.luau.android.lexsoup.LexSoup`
+
+High-speed native C++ replacement for JSoup powered by the **Lexbor** HTML engine.
+
+#### Classes & Methods
+```kotlin
+// Entry point
+LexSoup.parse(html: String): Document
+
+// Document
+doc.select(cssQuery: String): Elements
+doc.selectFirst(cssQuery: String): Element?
+doc.title(): String
+doc.body(): Element
+doc.text(): String
+doc.close()
+
+// Element
+element.select(cssQuery: String): Elements
+element.selectFirst(cssQuery: String): Element?
+element.attr(attributeKey: String): String
+element.hasAttr(attributeKey: String): Boolean
+element.text(): String
+element.tagName(): String
+element.id(): String
+element.className(): String
+
+// Elements (List<Element>)
+elements.first(): Element?
+elements.last(): Element?
+elements.attr(attributeKey: String): String
+elements.text(): String
+elements.size(): Int
+```
 
 ---
 
@@ -398,7 +438,38 @@ Java class reflection & invocation from Luau.
 ```lua
 local Jni = require("jni")
 local System = Jni.import("java/lang/System")
-
-local now = System:currentTimeMillis()
+local currentTime = System.currentTimeMillis()
 System.out:println("Printed via JNI!")
+```
+
+---
+
+### 13. `novelx-sources` Global Compatibility Shim
+Pre-injected global helper functions available automatically without requiring `require()` calls:
+
+```lua
+-- HTML Helpers
+html_select(body_html, selector) -> { { text: string, html: string, href: string } }
+html_select_first(body_html, selector) -> { text: string, html: string, href: string } | nil
+html_attr(html_str, selector, attr_name) -> string
+html_text(html_str, selector) -> string
+
+-- URL & String Helpers
+url_resolve(base_url, href) -> string
+url_encode(str) -> string
+url_decode(str) -> string
+
+string_trim(str) -> string
+string_starts_with(str, prefix) -> boolean
+string_ends_with(str, suffix) -> boolean
+string_contains(str, substr) -> boolean
+string_lower(str) -> string
+string_upper(str) -> string
+string_capitalize(str) -> string
+string_normalize(str) -> string
+string_clean(str) -> string
+
+-- Regex Helpers
+regex_replace(text, pattern, replacement) -> string
+regex_match(text, pattern) -> table | nil
 ```

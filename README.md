@@ -12,6 +12,8 @@ High-performance, modular Native SDK for Android dedicated to Luau-based extensi
 
 - **Embedded Luau VM:** Fast, sandboxed Luau scripting engine compiled for `arm64-v8a`.
 - **100% Native Heavy Processing:** Heavy DOM parsing, regex scanning, cryptography, and JSON serialization run entirely in native C/C++ via compiled static libraries.
+- **LexSoup JSoup Replacement (`com.luau.android.lexsoup`):** High-speed, drop-in Java/Kotlin replacement for JSoup powered by native Lexbor C++ engine (`LexSoup.parse`, `Document`, `Element`, `Elements`).
+- **novelx-sources Global Compatibility Shim:** Pre-injected global helper functions (`html_select`, `html_attr`, `url_resolve`, `regex_replace`, `string_clean`) to run extension scripts without modification.
 - **11 Built-in Native Modules:**
   - `html` (Powered by **Lexbor** HTML parser & CSS engine)
   - `js` (Powered by **QuickJS-NG** ECMAScript engine)
@@ -102,6 +104,20 @@ LuauRuntime(16 * 1024 * 1024).use { runtime ->
     val result = runtime.execute(script)
     println(result)
     // Output: Welcome (SHA256: 9e06482e)
+}
+```
+
+### ☕ LexSoup Drop-In JSoup Replacement Example
+
+```kotlin
+import com.luau.android.lexsoup.LexSoup
+
+val html = """<html><body><a href="/book/123" class="book-link">Book Title</a></body></html>"""
+
+LexSoup.parse(html).use { doc ->
+    val link = doc.selectFirst("a.book-link")
+    println(link?.attr("href")) // "/book/123"
+    println(link?.text())        // "Book Title"
 }
 ```
 
