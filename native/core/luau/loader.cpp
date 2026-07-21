@@ -41,6 +41,11 @@ static int luau_require(lua_State *L) {
     return 1;
 }
 
+static int custom_collectgarbage(lua_State *L) {
+    lua_gc(L, LUA_GCCOLLECT, 0);
+    return 0;
+}
+
 void luau_init_modules(lua_State *L) {
     // Create cache table _LOADED in registry
     lua_newtable(L);
@@ -53,6 +58,10 @@ void luau_init_modules(lua_State *L) {
     // Set global require function
     lua_pushcfunction(L, luau_require, "require");
     lua_setglobal(L, "require");
+
+    // Set global collectgarbage function for testing
+    lua_pushcfunction(L, custom_collectgarbage, "collectgarbage");
+    lua_setglobal(L, "collectgarbage");
 }
 
 void luau_register_module(lua_State *L, const char *name, lua_CFunction openf) {

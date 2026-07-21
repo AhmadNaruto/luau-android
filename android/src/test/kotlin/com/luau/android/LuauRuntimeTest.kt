@@ -188,4 +188,57 @@ class LuauRuntimeTest {
             runtime.execute(script)
         }
     }
+
+    @Test
+    fun testHtmlModule() {
+        LuauRuntime().use { runtime ->
+            val script = """
+                local html = require("html")
+                local doc = html.parse("<div><p class='test' id='p-id'>Hello</p></div>")
+                
+                -- Check root query
+                local p = doc:querySelector(".test")
+                assert(p ~= nil)
+                assert(p:text() == "Hello")
+                assert(p:tag() == "p")
+                assert(p:attr("class") == "test")
+                assert(p:attr("id") == "p-id")
+                
+                -- Check ID query
+                local p_by_id = doc:querySelector("#p-id")
+                assert(p_by_id ~= nil)
+                assert(p_by_id:text() == "Hello")
+                
+                -- Check tag query
+                local p_by_tag = doc:querySelector("p")
+                assert(p_by_tag ~= nil)
+                assert(p_by_tag:text() == "Hello")
+                
+                -- Check child querySelector
+                local div = doc:querySelector("div")
+                assert(div ~= nil)
+                local p_child = div:querySelector(".test")
+                assert(p_child ~= nil)
+                assert(p_child:text() == "Hello")
+                
+                -- Check non-existent query
+                local missing = doc:querySelector(".missing")
+                assert(missing == nil)
+
+                -- Verify memory model (refcounted document handle)
+                local doc2 = html.parse("<div><span class='test2'>World</span></div>")
+                local span = doc2:querySelector(".test2")
+                assert(span ~= nil)
+                doc2 = nil
+                collectgarbage()
+
+                -- The tree must NOT be freed yet because span still references the handle
+                assert(span:text() == "World")
+                span = nil
+                collectgarbage()
+                -- The tree is now freed safely
+            """.trimIndent()
+            runtime.execute(script)
+        }
+    }
 }
