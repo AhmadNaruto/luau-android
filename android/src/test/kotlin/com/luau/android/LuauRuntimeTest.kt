@@ -151,4 +151,41 @@ class LuauRuntimeTest {
             runtime.execute(script)
         }
     }
+
+    @Test
+    fun testBufferModule() {
+        LuauRuntime().use { runtime ->
+            val script = """
+                local buffer = require("buffer")
+                local buf = buffer.create(1024)
+                
+                -- Check size
+                assert(buf:size() == 1024)
+                
+                -- Check string read/write
+                buf:writeString(0, "Hello")
+                assert(buf:readString(0, 5) == "Hello")
+                
+                -- Check float64 read/write
+                buf:writeFloat64(10, 123.456)
+                assert(buf:readFloat64(10) == 123.456)
+                
+                -- Check int32 read/write
+                buf:writeInt32(20, -987654)
+                assert(buf:readInt32(20) == -987654)
+                
+                -- Check slice
+                local sliced = buf:slice(0, 5)
+                assert(sliced:size() == 5)
+                assert(sliced:readString(0, 5) == "Hello")
+                
+                -- Check out of bounds error
+                local success, err = pcall(function()
+                    buf:readString(1020, 10)
+                end)
+                assert(not success)
+            """.trimIndent()
+            runtime.execute(script)
+        }
+    }
 }
