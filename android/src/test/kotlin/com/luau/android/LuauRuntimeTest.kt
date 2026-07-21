@@ -454,4 +454,71 @@ class LuauRuntimeTest {
             runtime.execute(script)
         }
     }
+
+    @Test
+    fun testJsModule() {
+        LuauRuntime().use { runtime ->
+            val script = """
+                local js = require("js")
+
+                -- Create JS context
+                local ctx = js.new()
+                assert(ctx ~= nil, "js.new() returned nil")
+
+                -- eval: arithmetic
+                local result = ctx:eval("1 + 2")
+                assert(result == 3, "expected 3, got " .. tostring(result))
+
+                -- eval: string
+                local str = ctx:eval("'hello' + ' world'")
+                assert(str == "hello world", "expected 'hello world', got " .. tostring(str))
+
+                -- eval: boolean
+                local b = ctx:eval("true && false")
+                assert(b == false, "expected false")
+
+                -- eval: null/undefined → nil
+                local n = ctx:eval("null")
+                assert(n == nil, "null should be nil")
+
+                -- set + get round-trip
+                ctx:set("luau_val", 42)
+                local got = ctx:get("luau_val")
+                assert(got == 42, "expected 42, got " .. tostring(got))
+
+                ctx:set("luau_str", "world")
+                local got_str = ctx:get("luau_str")
+                assert(got_str == "world", "expected 'world', got " .. tostring(got_str))
+
+                -- eval uses set variable
+                local computed = ctx:eval("luau_val * 2")
+                assert(computed == 84, "expected 84, got " .. tostring(computed))
+
+                -- eval: JS function definition and call
+                ctx:eval("function add(a, b) { return a + b; }")
+                local sum = ctx:eval("add(10, 32)")
+                assert(sum == 42, "expected 42, got " .. tostring(sum))
+
+                -- Error handling
+                local ok, err = pcall(function()
+                    ctx:eval("throw new Error('test error')")
+                end)
+                assert(not ok, "should have thrown")
+                assert(err ~= nil and tostring(err):find("test error") ~= nil,
+                    "error message should contain 'test error', got: " .. tostring(err))
+
+                -- Syntax error
+                local ok2, err2 = pcall(function()
+                    ctx:eval("if (")
+                end)
+                assert(not ok2, "syntax error should throw")
+
+                -- GC does not crash
+                ctx:gc()
+
+                print("JS module OK")
+            """.trimIndent()
+            runtime.execute(script)
+        }
+    }
 }
