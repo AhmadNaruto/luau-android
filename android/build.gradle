@@ -40,6 +40,16 @@ android {
     kotlinOptions {
         jvmTarget = '17'
     }
+    testOptions {
+        unitTests {
+            // Each test method runs in its own JVM process so native heap state
+            // cannot leak between tests (prevents SIGTRAP from accumulated corruption)
+            all {
+                forkEvery = 1
+                maxParallelForks = 1
+            }
+        }
+    }
 }
 
 dependencies {

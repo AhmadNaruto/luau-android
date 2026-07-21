@@ -288,11 +288,45 @@ class LuauRuntimeTest {
                 local no_match = re:match("hello world")
                 assert(no_match == nil)
                 
+                -- Check find with offset
+                local re_num = regex.compile("\\d+")
+                local f1 = re_num:find("abc 123 def 456", 0)
+                assert(f1 ~= nil and f1[0] == "123")
+                local f2 = re_num:find("abc 123 def 456", 7)
+                assert(f2 ~= nil and f2[0] == "456")
+
+                -- Check find_all
+                local all = re_num:find_all("abc 123 def 456 ghi 789")
+                assert(#all == 3, "expected 3 matches, got " .. #all)
+                assert(all[1][0] == "123")
+                assert(all[2][0] == "456")
+                assert(all[3][0] == "789")
+
+                -- Check replace (single & replace_all)
+                local r1 = re_num:replace("apple 100 banana 200", "NUM")
+                assert(r1 == "apple NUM banana 200", "replace single failed: " .. r1)
+                local r2 = re_num:replace("apple 100 banana 200", "NUM", true)
+                assert(r2 == "apple NUM banana NUM", "replace_all failed: " .. r2)
+
+                -- Check replace with capture substitution $0 / $1
+                local re_pair = regex.compile("(\\w+)\\s*=\\s*(\\d+)")
+                local r3 = re_pair:replace("score = 100", "$1 points", false)
+                assert(r3 == "score points", "replace substitution failed: " .. r3)
+
+                -- Check split
+                local parts = regex.compile(",\\s*"):split("apple, banana, cherry")
+                assert(#parts == 3, "split length failed: " .. #parts)
+                assert(parts[1] == "apple")
+                assert(parts[2] == "banana")
+                assert(parts[3] == "cherry")
+
                 -- Check invalid regex
                 local success, err = pcall(function()
                     regex.compile("([invalid")
                 end)
                 assert(not success)
+
+                print("Regex module OK")
             """.trimIndent()
             runtime.execute(script)
         }
@@ -517,6 +551,118 @@ class LuauRuntimeTest {
                 ctx:gc()
 
                 print("JS module OK")
+            """.trimIndent()
+            runtime.execute(script)
+        }
+    }
+    @Test
+    fun testSelectModule() {
+        LuauRuntime().use { runtime ->
+            val script = """
+                local html   = require("html")
+                local select = require("select")
+
+                local doc = html.parse([[
+                    <html>
+                    <head><title>Test Page</title></head>
+                    <body>
+                        <h1 class="title">Hello World</h1>
+                        <img class="cover" src="https://example.com/cover.jpg" alt="cover">
+                        <p id="desc">A description paragraph.</p>
+                        <a href="https://example.com" class="link">Click here</a>
+                    </body>
+                    </html>
+                ]])
+
+                -- Fluent DSL: chain operations and batch-execute
+                local result = select
+                    .from(doc)
+                    :text("title",       "title")
+                    :text("heading",     "h1")
+                    :attr("cover_url",   ".cover", "src")
+                    :attr("cover_alt",   ".cover", "alt")
+                    :text("desc",        "#desc")
+                    :attr("link_href",   ".link",  "href")
+                    :text("missing",     ".nonexistent")
+                    :build()
+
+                assert(result ~= nil, "build() returned nil")
+                assert(result.title   == "Test Page",        "title: " .. tostring(result.title))
+                assert(result.heading == "Hello World",      "heading: " .. tostring(result.heading))
+                assert(result.cover_url == "https://example.com/cover.jpg",
+                    "cover_url: " .. tostring(result.cover_url))
+                assert(result.cover_alt == "cover",          "cover_alt: " .. tostring(result.cover_alt))
+                assert(result.desc == "A description paragraph.",
+                    "desc: " .. tostring(result.desc))
+                assert(result.link_href == "https://example.com",
+                    "link_href: " .. tostring(result.link_href))
+                assert(result.missing == nil, "missing selector should return nil")
+
+                -- Second independent build from same doc
+                local result2 = select
+                    .from(doc)
+                    :attr("img_src", ".cover", "src")
+                    :build()
+                assert(result2.img_src == "https://example.com/cover.jpg",
+                    "img_src: " .. tostring(result2.img_src))
+
+                print("Select module OK")
+            """.trimIndent()
+            runtime.execute(script)
+        }
+    }
+
+    @Test
+    fun testUtilModule() {
+        LuauRuntime().use { runtime ->
+            val script = """
+                local util = require("util")
+
+                -- trim
+                assert(util.trim("   hello world   ") == "hello world")
+
+                -- split & join
+                local parts = util.split("a,b,c", ",")
+                assert(#parts == 3 and parts[1] == "a" and parts[2] == "b" and parts[3] == "c")
+                assert(util.join(parts, "-") == "a-b-c")
+
+                -- startswith, endswith, contains
+                assert(util.startswith("hello world", "hello") == true)
+                assert(util.endswith("hello world", "world") == true)
+                assert(util.contains("hello world", "lo wo") == true)
+
+                -- lower, upper, capitalize
+                assert(util.lower("Hello World") == "hello world")
+                assert(util.upper("Hello World") == "HELLO WORLD")
+                assert(util.capitalize("hello WORLD") == "Hello world")
+
+                -- uuid
+                local u = util.uuid()
+                assert(type(u) == "string" and #u == 36)
+
+                print("Util module OK")
+            """.trimIndent()
+            runtime.execute(script)
+        }
+    }
+
+    @Test
+    fun testTimeModule() {
+        LuauRuntime().use { runtime ->
+            val script = """
+                local time = require("time")
+
+                -- now & unix
+                local now_val = time.now()
+                assert(type(now_val) == "number" and now_val > 0)
+                local unix_val = time.unix()
+                assert(type(unix_val) == "number" and unix_val > 0)
+
+                -- format & parse
+                local formatted = time.format(1700000000, "%Y-%m-%d %H:%M:%S")
+                assert(type(formatted) == "string" and #formatted > 0)
+
+                print("Time module OK")
             """.trimIndent()
             runtime.execute(script)
         }

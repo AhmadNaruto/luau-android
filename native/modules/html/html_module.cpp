@@ -9,12 +9,6 @@
 #include <string.h>
 #include <string>
 
-// Refcounted document handle
-typedef struct {
-    lxb_html_document_t *lexbor_doc;
-    int refcount;
-} native_html_doc_handle_t;
-
 static void doc_handle_retain(native_html_doc_handle_t *h) {
     h->refcount++;
 }
@@ -25,17 +19,6 @@ static void doc_handle_release(native_html_doc_handle_t *h) {
         free(h);
     }
 }
-
-// Document Userdata Layout
-typedef struct {
-    native_html_doc_handle_t *handle;
-} html_doc_t;
-
-// Node Userdata Layout
-typedef struct {
-    native_html_doc_handle_t *handle;
-    lxb_dom_node_t *node;
-} html_node_t;
 
 // Check if node matches selector (.class, #id, tag)
 static bool match_node(lxb_dom_node_t *node, const char *selector) {
