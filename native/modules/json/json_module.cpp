@@ -132,8 +132,9 @@ static yyjson_mut_val *lua_to_yyjson_val(lua_State *L, int idx, yyjson_mut_doc *
                     size_t klen = 0;
                     const char *key_str = lua_tolstring(L, -1, &klen);
                     
+                    yyjson_mut_val *key_val = yyjson_mut_strncpy(doc, key_str ? key_str : "", klen);
                     yyjson_mut_val *val = lua_to_yyjson_val(L, -2, doc); // convert value
-                    yyjson_mut_obj_add_val(doc, obj, key_str, val);
+                    yyjson_mut_obj_add_val(doc, obj, key_val, val);
                     
                     lua_pop(L, 2); // pop duplicated key & value
                 }
