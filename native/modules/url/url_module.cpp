@@ -149,32 +149,40 @@ static int url_join(lua_State *L) {
     const char *base_str = luaL_checkstring(L, 1);
     const char *rel_str  = luaL_checkstring(L, 2);
 
-    lxb_url_parser_t *parser = lxb_url_parser_create();
-    if (!parser) { luaL_error(L, "Failed to create URL parser"); return 0; }
-    if (lxb_url_parser_init(parser, NULL) != LXB_STATUS_OK) {
-        lxb_url_parser_destroy(parser, true);
-        luaL_error(L, "Failed to init URL parser");
-        return 0;
+    lxb_url_parser_t *parser1 = lxb_url_parser_create();
+    if (!parser1) { lua_pushstring(L, rel_str); return 1; }
+    if (lxb_url_parser_init(parser1, NULL) != LXB_STATUS_OK) {
+        lxb_url_parser_destroy(parser1, true);
+        lua_pushstring(L, rel_str);
+        return 1;
     }
 
-    // Parse base first
-    lxb_url_t *base = lxb_url_parse(parser, NULL,
-                                     (const lxb_char_t*)base_str, strlen(base_str));
+    lxb_url_t *base = lxb_url_parse(parser1, NULL, (const lxb_char_t*)base_str, strlen(base_str));
     if (!base) {
-        lxb_url_parser_destroy(parser, true);
-        luaL_error(L, "Failed to parse base URL: %s", base_str);
-        return 0;
+        lxb_url_parser_destroy(parser1, true);
+        lua_pushstring(L, rel_str);
+        return 1;
     }
 
-    // Re-init for relative parsing but keep mraw from base URL alive
-    lxb_url_parser_clean(parser);
+    lxb_url_parser_t *parser2 = lxb_url_parser_create();
+    if (!parser2) {
+        lxb_url_parser_destroy(parser1, true);
+        lua_pushstring(L, rel_str);
+        return 1;
+    }
+    if (lxb_url_parser_init(parser2, NULL) != LXB_STATUS_OK) {
+        lxb_url_parser_destroy(parser1, true);
+        lxb_url_parser_destroy(parser2, true);
+        lua_pushstring(L, rel_str);
+        return 1;
+    }
 
-    lxb_url_t *resolved = lxb_url_parse(parser, base,
-                                          (const lxb_char_t*)rel_str, strlen(rel_str));
+    lxb_url_t *resolved = lxb_url_parse(parser2, base, (const lxb_char_t*)rel_str, strlen(rel_str));
     if (!resolved) {
-        lxb_url_parser_destroy(parser, true);
-        luaL_error(L, "Failed to resolve URL: %s against %s", rel_str, base_str);
-        return 0;
+        lxb_url_parser_destroy(parser1, true);
+        lxb_url_parser_destroy(parser2, true);
+        lua_pushstring(L, rel_str);
+        return 1;
     }
 
     url_str_t s = {NULL, 0, 0};
@@ -182,11 +190,12 @@ static int url_join(lua_State *L) {
     if (s.len > 0) {
         lua_pushlstring(L, s.buf, s.len);
     } else {
-        lua_pushstring(L, "");
+        lua_pushstring(L, rel_str);
     }
     if (s.buf) free(s.buf);
 
-    lxb_url_parser_destroy(parser, true);
+    lxb_url_parser_destroy(parser1, true);
+    lxb_url_parser_destroy(parser2, true);
     return 1;
 }
 
