@@ -167,6 +167,9 @@ luau_runtime_t* luau_create_runtime(size_t memory_limit) {
         end
 
         -- HTML helpers
+        LexSoup = html
+        Jsoup = html
+
         local function make_el(node, fullHtml)
             if not node then return nil end
             local outer = (node.outerHtml and node:outerHtml()) or (node.html and node:html()) or fullHtml or ""
