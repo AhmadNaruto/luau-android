@@ -13,6 +13,7 @@ JNIEXPORT jlong JNICALL Java_com_luau_android_LuauRuntime_nativeCreateRuntime(JN
 JNIEXPORT void JNICALL Java_com_luau_android_LuauRuntime_nativeDestroyRuntime(JNIEnv *env, jobject thiz, jlong handle) {
     luau_runtime_t *runtime = (luau_runtime_t*)(uintptr_t)handle;
     if (runtime) {
+        runtime->env = (void*)env;
         luau_destroy_runtime(runtime);
     }
 }
