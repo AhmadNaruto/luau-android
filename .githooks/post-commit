@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Git post-commit hook for luau-android submodule
+set -e
+
+PARENT_DIR=$(git -C "$(git rev-parse --show-toplevel)" rev-parse --show-toplevel 2>/dev/null || true)
+if [ -z "$PARENT_DIR" ]; then
+    PARENT_DIR="$(pwd)/.."
+fi
+
+if [ -d "$PARENT_DIR/.git" ]; then
+    COMMIT_HASH=$(git rev-parse --short HEAD)
+    echo "⚓ [Git Hook] Updating luau-android pointer in NoveLA to ${COMMIT_HASH}..."
+    git -C "$PARENT_DIR" add luau-android
+    git -C "$PARENT_DIR" commit -m "chore(submodule): update luau-android pointer to commit ${COMMIT_HASH}" || true
+fi
