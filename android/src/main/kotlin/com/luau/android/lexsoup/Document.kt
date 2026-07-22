@@ -34,9 +34,11 @@ class Document internal constructor(
 
     fun location(): String = locationUrl
 
-    fun outerHtml(): String = text()
+    fun rootElement(): Element? = if (rootNodePtr != 0L) Element(rootNodePtr, docHandlePtr) else null
 
-    fun html(): String = text()
+    fun outerHtml(): String = rootElement()?.outerHtml() ?: ""
+
+    fun html(): String = outerHtml()
 
     fun text(): String {
         if (rootNodePtr == 0L) return ""

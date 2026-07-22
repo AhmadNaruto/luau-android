@@ -41,5 +41,12 @@ class Element internal constructor(
 
     fun ownerDocument(): Document? = if (docHandlePtr != 0L) Document(docHandlePtr) else null
 
+    fun outerHtml(): String {
+        if (nodePtr == 0L) return ""
+        return LexSoupBridge.nativeOuterHtml(nodePtr)
+    }
+
+    fun html(): String = outerHtml()
+
     override fun toString(): String = text()
 }

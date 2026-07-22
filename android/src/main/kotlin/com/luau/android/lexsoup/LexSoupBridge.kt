@@ -31,4 +31,7 @@ internal object LexSoupBridge {
 
     @JvmStatic
     external fun nativeTagName(nodePtr: Long): String
+
+    @JvmStatic
+    external fun nativeOuterHtml(nodePtr: Long): String
 }

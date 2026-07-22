@@ -169,9 +169,10 @@ luau_runtime_t* luau_create_runtime(size_t memory_limit) {
         -- HTML helpers
         local function make_el(node, fullHtml)
             if not node then return nil end
+            local outer = (node.outerHtml and node:outerHtml()) or (node.html and node:html()) or fullHtml or ""
             local el = {
                 text = node:text() or "",
-                html = fullHtml or "",
+                html = outer,
                 href = node:attr("href") or "",
                 src = node:attr("src") or node:attr("data-src") or ""
             }
@@ -190,25 +191,28 @@ luau_runtime_t* luau_create_runtime(size_t memory_limit) {
 
         function html_select(body, selector)
             if not body or not selector then return {} end
-            local doc = html.parse(body)
+            local bodyStr = type(body) == "table" and body.html or tostring(body)
+            local doc = html.parse(bodyStr)
             local nodes = doc:querySelectorAll(selector)
             local res = {}
             for i, node in ipairs(nodes) do
-                table.insert(res, make_el(node, body))
+                table.insert(res, make_el(node, bodyStr))
             end
             return res
         end
 
         function html_select_first(body, selector)
             if not body or not selector then return nil end
-            local doc = html.parse(body)
+            local bodyStr = type(body) == "table" and body.html or tostring(body)
+            local doc = html.parse(bodyStr)
             local node = doc:querySelector(selector)
-            return make_el(node, body)
+            return make_el(node, bodyStr)
         end
 
         function html_attr(html_str, selector, attr_name)
             if not html_str or not selector or not attr_name then return "" end
-            local doc = html.parse(html_str)
+            local bodyStr = type(html_str) == "table" and html_str.html or tostring(html_str)
+            local doc = html.parse(bodyStr)
             if selector == "*" then
                 local root = doc:querySelector("*")
                 if not root then return "" end
@@ -221,7 +225,8 @@ luau_runtime_t* luau_create_runtime(size_t memory_limit) {
 
         function html_text(html_str, selector)
             if not html_str then return "" end
-            local doc = html.parse(html_str)
+            local bodyStr = type(html_str) == "table" and html_str.html or tostring(html_str)
+            local doc = html.parse(bodyStr)
             if not selector or selector == "" or selector == "*" then
                 return doc:text() or ""
             end
@@ -232,17 +237,18 @@ luau_runtime_t* luau_create_runtime(size_t memory_limit) {
 
         function html_remove(body, ...)
             if not body then return "" end
-            local doc = html.parse(body)
+            local bodyStr = type(body) == "table" and body.html or tostring(body)
+            local doc = html.parse(bodyStr)
             local selectors = {...}
             for _, sel in ipairs(selectors) do
                 if sel and sel ~= "" then
                     local nodes = doc:querySelectorAll(sel)
                     for _, node in ipairs(nodes) do
-                        node:remove()
+                        if node.remove then node:remove() end
                     end
                 end
             end
-            return doc:html() or body
+            return (doc.outerHtml and doc:outerHtml()) or (doc.html and doc:html()) or bodyStr
         end
 
         function log_error(msg)

@@ -1,7 +1,11 @@
 #include <jni.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
+#include <string>
+#include <vector>
 #include "lexbor/html/html.h"
+#include "lexbor/html/serialize.h"
 #include "lexbor/dom/interfaces/element.h"
 #include "lexbor/dom/interfaces/node.h"
 
@@ -12,104 +16,230 @@ typedef struct {
     lxb_html_document_t *lexbor_doc;
 } lexsoup_doc_handle_t;
 
+struct lexbor_serialize_ctx_t {
+    std::string str;
+};
+
+static lxb_status_t lexbor_serialize_callback(const lxb_char_t *data, size_t len, void *ctx) {
+    lexbor_serialize_ctx_t *s = (lexbor_serialize_ctx_t*)ctx;
+    s->str.append((const char*)data, len);
+    return LXB_STATUS_OK;
+}
+
+static std::string serialize_node(lxb_dom_node_t *node) {
+    if (!node) return "";
+    lexbor_serialize_ctx_t s;
+    lxb_html_serialize_deep_cb(node, lexbor_serialize_callback, &s);
+    return s.str;
+}
+
 // ─── Selector Matching Logic ──────────────────────────────────────────────────
 
-static bool match_single_selector(lxb_dom_element_t *el, const char *sel, size_t sel_len) {
-    if (sel_len == 0) return false;
-    const char *dot = (const char*)memchr(sel, '.', sel_len);
-    if (dot) {
-        size_t tag_len = dot - sel;
-        if (tag_len > 0) {
-            size_t vlen = 0;
-            const lxb_char_t *name = lxb_dom_element_qualified_name(el, &vlen);
-            if (!name || vlen != tag_len || memcmp(name, sel, tag_len) != 0) {
-                return false;
-            }
-        }
-        const char *class_target = dot + 1;
-        size_t class_target_len = sel_len - (dot - sel) - 1;
+static bool match_compound_token(lxb_dom_element_t *el, const std::string &token) {
+    if (!el || token.empty() || token == "*") return true;
 
+    size_t not_pos = token.find(":not(");
+    if (not_pos != std::string::npos) {
+        size_t close_pos = token.find(')', not_pos);
+        if (close_pos != std::string::npos) {
+            std::string main_part = token.substr(0, not_pos);
+            std::string not_part = token.substr(not_pos + 5, close_pos - (not_pos + 5));
+            if (!main_part.empty() && !match_compound_token(el, main_part)) return false;
+            if (match_compound_token(el, not_part)) return false;
+            return true;
+        }
+    }
+
+    size_t i = 0;
+    size_t len = token.length();
+
+    if (token[0] != '.' && token[0] != '#' && token[0] != '[') {
+        size_t end_tag = token.find_first_of(".#[", 0);
+        std::string tag_name = (end_tag == std::string::npos) ? token : token.substr(0, end_tag);
         size_t vlen = 0;
-        const lxb_char_t *cls = lxb_dom_element_get_attribute(el, (const lxb_char_t*)"class", 5, &vlen);
-        if (!cls || vlen == 0) return false;
-        const char *class_str = (const char*)cls;
-        size_t ci = 0;
-        while (ci < vlen) {
-            while (ci < vlen && class_str[ci] == ' ') ci++;
-            size_t start = ci;
-            while (ci < vlen && class_str[ci] != ' ') ci++;
-            size_t wlen = ci - start;
-            if (wlen == class_target_len && memcmp(class_str + start, class_target, class_target_len) == 0) {
-                return true;
+        const lxb_char_t *el_tag = lxb_dom_element_qualified_name(el, &vlen);
+        if (!el_tag) return false;
+        std::string el_tag_str((const char*)el_tag, vlen);
+        if (strcasecmp(el_tag_str.c_str(), tag_name.c_str()) != 0) return false;
+        i = (end_tag == std::string::npos) ? len : end_tag;
+    }
+
+    while (i < len) {
+        if (token[i] == '.') {
+            i++;
+            size_t start = i;
+            while (i < len && token[i] != '.' && token[i] != '#' && token[i] != '[') i++;
+            std::string cls_name = token.substr(start, i - start);
+            
+            size_t vlen = 0;
+            const lxb_char_t *cls_attr = lxb_dom_element_get_attribute(el, (const lxb_char_t*)"class", 5, &vlen);
+            if (!cls_attr || vlen == 0) return false;
+            
+            std::string class_str((const char*)cls_attr, vlen);
+            bool found_class = false;
+            size_t ci = 0;
+            while (ci < vlen) {
+                while (ci < vlen && class_str[ci] == ' ') ci++;
+                size_t cstart = ci;
+                while (ci < vlen && class_str[ci] != ' ') ci++;
+                size_t clen = ci - cstart;
+                if (clen == cls_name.length() && memcmp(class_str.c_str() + cstart, cls_name.c_str(), clen) == 0) {
+                    found_class = true;
+                    break;
+                }
+            }
+            if (!found_class) return false;
+        } else if (token[i] == '#') {
+            i++;
+            size_t start = i;
+            while (i < len && token[i] != '.' && token[i] != '#' && token[i] != '[') i++;
+            std::string id_val = token.substr(start, i - start);
+            
+            size_t vlen = 0;
+            const lxb_char_t *id_attr = lxb_dom_element_get_attribute(el, (const lxb_char_t*)"id", 2, &vlen);
+            if (!id_attr || vlen != id_val.length() || memcmp(id_attr, id_val.c_str(), vlen) != 0) return false;
+        } else if (token[i] == '[') {
+            i++;
+            size_t close_bracket = token.find(']', i);
+            if (close_bracket == std::string::npos) return false;
+            std::string attr_expr = token.substr(i, close_bracket - i);
+            i = close_bracket + 1;
+            
+            size_t eq_pos = attr_expr.find('=');
+            if (eq_pos == std::string::npos) {
+                size_t vlen = 0;
+                const lxb_char_t *val = lxb_dom_element_get_attribute(el, (const lxb_char_t*)attr_expr.c_str(), attr_expr.length(), &vlen);
+                if (!val) return false;
+            } else {
+                char op = '=';
+                std::string attr_name = attr_expr.substr(0, eq_pos);
+                if (eq_pos > 0 && (attr_expr[eq_pos - 1] == '^' || attr_expr[eq_pos - 1] == '$' || attr_expr[eq_pos - 1] == '*')) {
+                    op = attr_expr[eq_pos - 1];
+                    attr_name = attr_expr.substr(0, eq_pos - 1);
+                }
+                std::string expected_val = attr_expr.substr(eq_pos + 1);
+                if (!expected_val.empty() && (expected_val.front() == '"' || expected_val.front() == '\'')) expected_val.erase(0, 1);
+                if (!expected_val.empty() && (expected_val.back() == '"' || expected_val.back() == '\'')) expected_val.pop_back();
+
+                size_t vlen = 0;
+                const lxb_char_t *val = lxb_dom_element_get_attribute(el, (const lxb_char_t*)attr_name.c_str(), attr_name.length(), &vlen);
+                if (!val) return false;
+                std::string actual_val((const char*)val, vlen);
+
+                if (op == '=') {
+                    if (actual_val != expected_val) return false;
+                } else if (op == '^') {
+                    if (actual_val.rfind(expected_val, 0) != 0) return false;
+                } else if (op == '$') {
+                    if (actual_val.length() < expected_val.length() || actual_val.compare(actual_val.length() - expected_val.length(), expected_val.length(), expected_val) != 0) return false;
+                } else if (op == '*') {
+                    if (actual_val.find(expected_val) == std::string::npos) return false;
+                }
+            }
+        } else {
+            i++;
+        }
+    }
+    return true;
+}
+
+struct selector_token_t {
+    std::string token;
+    char combinator;
+};
+
+static std::vector<selector_token_t> parse_selector_chain(const std::string &selector) {
+    std::vector<selector_token_t> chain;
+    size_t i = 0;
+    size_t len = selector.length();
+    char current_comb = ' ';
+
+    while (i < len) {
+        while (i < len && (selector[i] == ' ' || selector[i] == '\t')) i++;
+        if (i >= len) break;
+
+        if (selector[i] == '>') {
+            current_comb = '>';
+            i++;
+            while (i < len && (selector[i] == ' ' || selector[i] == '\t')) i++;
+        }
+
+        size_t start = i;
+        while (i < len && selector[i] != ' ' && selector[i] != '\t' && selector[i] != '>') {
+            if (selector[i] == '[') {
+                while (i < len && selector[i] != ']') i++;
+                if (i < len) i++;
+            } else {
+                i++;
             }
         }
-        return false;
-    } else if (sel[0] == '#') {
-        size_t vlen = 0;
-        const lxb_char_t *id_attr = lxb_dom_element_get_attribute(el, (const lxb_char_t*)"id", 2, &vlen);
-        if (!id_attr || vlen == 0) return false;
-        return (vlen == sel_len - 1 && memcmp(id_attr, sel + 1, vlen) == 0);
-    } else if (sel[0] == '[') {
-        const char *close_bracket = (const char*)memchr(sel, ']', sel_len);
-        if (!close_bracket) return false;
-        size_t attr_len = close_bracket - sel - 1;
-        const char *attr_name = sel + 1;
-        size_t vlen = 0;
-        const lxb_char_t *attr_val = lxb_dom_element_get_attribute(el, (const lxb_char_t*)attr_name, attr_len, &vlen);
-        return (attr_val != NULL);
-    } else {
-        const char *bracket = (const char*)memchr(sel, '[', sel_len);
-        size_t tag_len = bracket ? (size_t)(bracket - sel) : sel_len;
-        size_t vlen = 0;
-        const lxb_char_t *name = lxb_dom_element_qualified_name(el, &vlen);
-        if (!name || vlen != tag_len || memcmp(name, sel, tag_len) != 0) {
-            return false;
+
+        std::string tok = selector.substr(start, i - start);
+        if (!tok.empty()) {
+            chain.push_back({tok, current_comb});
+            current_comb = ' ';
         }
-        if (bracket) {
-            const char *close_bracket = (const char*)memchr(bracket, ']', sel_len - tag_len);
-            if (!close_bracket) return false;
-            size_t attr_len = close_bracket - bracket - 1;
-            const char *attr_name = bracket + 1;
-            size_t aval_len = 0;
-            const lxb_char_t *attr_val = lxb_dom_element_get_attribute(el, (const lxb_char_t*)attr_name, attr_len, &aval_len);
-            return (attr_val != NULL && aval_len > 0);
-        }
-        return true;
     }
+    return chain;
+}
+
+static bool match_node_chain(lxb_dom_node_t *node, const std::vector<selector_token_t> &chain) {
+    if (!node || node->type != LXB_DOM_NODE_TYPE_ELEMENT || chain.empty()) return false;
+
+    int idx = (int)chain.size() - 1;
+    if (!match_compound_token((lxb_dom_element_t*)node, chain[idx].token)) {
+        return false;
+    }
+
+    lxb_dom_node_t *curr_node = node;
+    idx--;
+
+    while (idx >= 0) {
+        char comb = chain[idx + 1].combinator;
+        if (comb == '>') {
+            lxb_dom_node_t *parent = curr_node->parent;
+            if (!parent || parent->type != LXB_DOM_NODE_TYPE_ELEMENT) return false;
+            if (!match_compound_token((lxb_dom_element_t*)parent, chain[idx].token)) return false;
+            curr_node = parent;
+        } else {
+            lxb_dom_node_t *parent = curr_node->parent;
+            bool found_ancestor = false;
+            while (parent) {
+                if (parent->type == LXB_DOM_NODE_TYPE_ELEMENT) {
+                    if (match_compound_token((lxb_dom_element_t*)parent, chain[idx].token)) {
+                        curr_node = parent;
+                        found_ancestor = true;
+                        break;
+                    }
+                }
+                parent = parent->parent;
+            }
+            if (!found_ancestor) return false;
+        }
+        idx--;
+    }
+    return true;
 }
 
 static bool match_node(lxb_dom_node_t *node, const char *selector) {
-    if (!node || node->type != LXB_DOM_NODE_TYPE_ELEMENT) return false;
-    lxb_dom_element_t *el = (lxb_dom_element_t*)node;
+    if (!node || node->type != LXB_DOM_NODE_TYPE_ELEMENT || !selector || !*selector) return false;
 
-    const char *last_space = strrchr(selector, ' ');
-    if (!last_space) {
-        return match_single_selector(el, selector, strlen(selector));
-    }
-
-    const char *target_sel = last_space + 1;
-    if (*target_sel == '>') target_sel++;
-    while (*target_sel == ' ') target_sel++;
-    if (*target_sel == '\0') return false;
-
-    if (!match_single_selector(el, target_sel, strlen(target_sel))) {
-        return false;
-    }
-
-    const char *first_token = selector;
-    size_t first_len = last_space - selector;
-    while (first_len > 0 && (first_token[first_len - 1] == ' ' || first_token[first_len - 1] == '>')) {
-        first_len--;
-    }
-
-    lxb_dom_node_t *parent = node->parent;
-    while (parent) {
-        if (parent->type == LXB_DOM_NODE_TYPE_ELEMENT) {
-            if (match_single_selector((lxb_dom_element_t*)parent, first_token, first_len)) {
-                return true;
-            }
+    std::string sel_str(selector);
+    size_t start = 0;
+    while (start < sel_str.length()) {
+        size_t comma = sel_str.find(',', start);
+        std::string sub_sel = (comma == std::string::npos) ? sel_str.substr(start) : sel_str.substr(start, comma - start);
+        
+        size_t s = sub_sel.find_first_not_of(" \t");
+        size_t e = sub_sel.find_last_not_of(" \t");
+        if (s != std::string::npos && e != std::string::npos) {
+            sub_sel = sub_sel.substr(s, e - s + 1);
+            auto chain = parse_selector_chain(sub_sel);
+            if (match_node_chain(node, chain)) return true;
         }
-        parent = parent->parent;
+
+        if (comma == std::string::npos) break;
+        start = comma + 1;
     }
     return false;
 }
@@ -325,6 +455,14 @@ Java_com_luau_android_lexsoup_LexSoupBridge_nativeTagName(JNIEnv *env, jclass cl
         return env->NewStringUTF((const char*)name);
     }
     return env->NewStringUTF("");
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_luau_android_lexsoup_LexSoupBridge_nativeOuterHtml(JNIEnv *env, jclass clazz, jlong node_ptr) {
+    if (!node_ptr) return env->NewStringUTF("");
+    lxb_dom_node_t *node = (lxb_dom_node_t*)(uintptr_t)node_ptr;
+    std::string outer = serialize_node(node);
+    return env->NewStringUTF(outer.c_str());
 }
 
 } // extern "C"
