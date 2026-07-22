@@ -16,19 +16,19 @@ typedef struct {
     lxb_html_document_t *lexbor_doc;
 } lexsoup_doc_handle_t;
 
-struct lexbor_serialize_ctx_t {
+struct html_serialize_ctx_t {
     std::string str;
 };
 
 static lxb_status_t lexbor_serialize_callback(const lxb_char_t *data, size_t len, void *ctx) {
-    lexbor_serialize_ctx_t *s = (lexbor_serialize_ctx_t*)ctx;
+    html_serialize_ctx_t *s = (html_serialize_ctx_t*)ctx;
     s->str.append((const char*)data, len);
     return LXB_STATUS_OK;
 }
 
 static std::string serialize_node(lxb_dom_node_t *node) {
     if (!node) return "";
-    lexbor_serialize_ctx_t s;
+    html_serialize_ctx_t s;
     lxb_html_serialize_deep_cb(node, lexbor_serialize_callback, &s);
     return s.str;
 }
