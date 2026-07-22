@@ -139,7 +139,7 @@ luau_runtime_t* luau_create_runtime(size_t memory_limit) {
             if ok and Jni then
                 local okBridge, Bridge = pcall(Jni.import, "my/noveldokusha/scraper/NetworkBridge")
                 if okBridge and Bridge then
-                    local res = Bridge:get(url)
+                    local res = headers and type(headers) == "table" and Bridge:getWithHeaders(url, headers) or Bridge:get(url)
                     return {
                         success = res.success == true,
                         body = tostring(res.body or ""),
@@ -155,7 +155,7 @@ luau_runtime_t* luau_create_runtime(size_t memory_limit) {
             if ok and Jni then
                 local okBridge, Bridge = pcall(Jni.import, "my/noveldokusha/scraper/NetworkBridge")
                 if okBridge and Bridge then
-                    local res = Bridge:post(url, tostring(body or ""))
+                    local res = headers and type(headers) == "table" and Bridge:postWithHeaders(url, tostring(body or ""), headers) or Bridge:post(url, tostring(body or ""))
                     return {
                         success = res.success == true,
                         body = tostring(res.body or ""),
