@@ -2,10 +2,7 @@
 # Git post-commit hook for luau-android submodule
 set -e
 
-PARENT_DIR=$(git -C "$(git rev-parse --show-toplevel)" rev-parse --show-toplevel 2>/dev/null || true)
-if [ -z "$PARENT_DIR" ]; then
-    PARENT_DIR="$(pwd)/.."
-fi
+PARENT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 
 if [ -d "$PARENT_DIR/.git" ]; then
     COMMIT_HASH=$(git rev-parse --short HEAD)
