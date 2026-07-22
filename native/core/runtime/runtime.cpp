@@ -186,7 +186,12 @@ luau_runtime_t* luau_create_runtime(size_t memory_limit) {
                             return node:attr(attr_name) or ""
                         end
                     end
-                    return rawget(t, k)
+                    local v = rawget(t, k)
+                    if v ~= nil then return v end
+                    if type(k) == "string" and node and node.attr then
+                        return node:attr(k) or ""
+                    end
+                    return ""
                 end
             })
             return el
